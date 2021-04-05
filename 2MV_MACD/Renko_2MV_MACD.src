@@ -1,0 +1,184 @@
+// Autor: Gustavo Brand (gustavo.bervian.brand@gmail.com)
+// Fonte: Canal Viver de Trade no youtube
+
+// Alvo principal: WDO com renko (7R ou 8R) no intraday
+
+// Indicacao de coloracao + Compra/Venda:
+// Compra: no fechamento acima de medias exp 21 e 72 + 
+//         MADC histograma 150,14,14 acima de 0 + 
+//         apos candle branco do 2MV_Padrao. 
+// Venda: no fechamento abaixo de medias exp 21 e 72 + 
+//         MADC histograma 150,14,14 abaixo de 0 + 
+//         apos candle branco do 2MV_Padrao. 
+ 
+input
+  TwoMVPeriod(20);
+  FastPeriodMMs(21);
+  MediumPeriodMMs(72);
+
+  LongPeriodMACD(150);
+  FastPeriodMACD(14);
+  SignalPeriodMACD(14);
+
+var
+  sFastMMs   : Float;
+  sMediumMMs : Float;
+  s2MVHigh : Float;
+  s2MVLow : Float; 
+
+  sLongMACD   : Float; 
+  sFastMACD   : Float;
+  sSignalMACD : Float;
+  macdval : Float;
+  macdmargin : Float; //Margem de aceite da operacao quando 
+                      //em torno de 0. Valor de +- 1 para WDO 15R.
+
+  stopInit         : Float;
+  stopVarianceInit : Float;
+  stopTrailing     : Float;
+
+  buySignal : Boolean;
+  sellSignal : Boolean;
+  neutralCandle : Boolean;
+  i : Integer;
+
+begin // BEGIN 01
+
+  stopInit := 9; // Stops em 3 candles: 15R=21; 8R=9.5; 7R=9 
+  stopVarianceInit := 0;
+  stopTrailing := 9; // Stops em 3 candles: 15R=21; 8R=9.5; 7R=9
+  macdmargin := 0;   
+
+  buySignal := false;
+  sellSignal := false;
+  neutralCandle := false;
+
+  // Verificacao para fechar trades ao final do dia.  
+  if (TIME >= 1745) or (TIME <= 0902) then
+    begin
+      CancelPendingOrders;
+      if (BuyPosition >= 1) then
+        SellToCoverAtMarket;
+      if (SellPosition >= 1) then
+        BuyToCoverAtMarket;
+    end
+
+  else 
+    begin  // BEGIN 02
+      // Em caso de posicao comprada, subir o stop ou stopar o trade
+      if (BuyPosition >= 1) then
+        begin
+          // Se o candle anterior eh de alta, subir o stop
+          if (Close[1] > Open[1])  then
+            begin
+              CancelPendingOrders;
+              SellShortStop(Open-stopTrailing, Open-stopTrailing);
+              PaintBar(clGreen);
+            end;
+          // Mas se o candle atual eh de baixa, stopar a mercado
+          if (Open < Close[1]) then // ou (Close < Open)
+            begin
+              CancelPendingOrders;        
+              SellToCoverAtMarket;
+              PaintBar(clYellow);
+            end;
+        end;
+
+      // Em caso de posicao vendida, baixar o stop ou stopar o trade
+      if (SellPosition >= 1) then
+        begin
+          // Se o candle anterior eh de baixa, baixar o stop
+          if (Close[1] < Open[1]) then
+            begin
+              CancelPendingOrders;
+              BuyToCoverStop(Open+stopTrailing, Open+stopTrailing);
+              PaintBar(clPurple);
+            end;
+          // Mas se o candle atual eh de alta, stopar a mercado
+          if (Open > Close[1]) then // ou Close > Open
+            begin
+              CancelPendingOrders;        
+              BuyToCoverAtMarket;
+              PaintBar(clYellow);
+            end;
+        end;
+
+      if (BuyPosition = 0) and (SellPosition = 0) then
+        begin // BEGIN 03
+  
+            sFastMMs := MediaExp(FastPeriodMMs,Close);
+            sMediumMMs := MediaExp(MediumPeriodMMs,Close); 
+          
+            sFastMACD := MediaExp(FastPeriodMACD,Close);
+            sLongMACD := MediaExp(LongPeriodMACD,Close); 
+            //macdval := MACD(150, 14, 14);
+            macdval := sLongMACD - sFastMACD;
+            sSignalMACD := MediaExp(SignalPeriodMACD, macdval);
+          
+//            plot (sFastMMs);
+//            plot2 (sMediumMMs); 
+             plot3(macdval);
+             plot4(sSignalMACD); // media que parece o traco mais longo
+          
+            // TODO melhorar:
+            // 1. apos uma saida por stop reentrar somente em um candle na direcao
+            // 2. reajustar stop somente em candles na direcao
+
+            s2MVHigh := Media(TwoMVPeriod, High); // de forma simples: Media(20, High) 
+            s2MVLow := Media(TwoMVPeriod, Low);   // de forma simples: Media(20, Low)
+
+            neutralCandle := ((Close <= s2MVHigh) and (Close >= s2MVLow));
+
+            i:=0;
+            buySignal := (Close[i] > sFastMMs[i]) and 
+               (Close[i] > sMediumMMs[i]) and
+               (sSignalMACD[i] > (sLongMACD[i] - sFastMACD[i])-macdmargin) and
+               (Close[i] > s2MVHigh[i]) and  //Caso positivo do 2MV_Padrao
+               ((sSignalMACD[i] - (sLongMACD[i] - sFastMACD[i])) < 15 );
+            
+            i:=0;      
+            sellSignal := (Close[i] < sFastMMs[i]) and 
+               (Close[i] < sMediumMMs[i]) and
+               (sSignalMACD[i] < (sLongMACD[i] - sFastMACD[i])+macdmargin) and
+               (Close[i] < s2MVLow[i])  and  //Caso negativo do 2MV_Padrao    
+               (((sLongMACD[i] - sFastMACD[i]) - sSignalMACD[i]) < 15 );
+                  
+            if (buySignal and
+               (neutralCandle[1] or neutralCandle[2] or 
+                neutralCandle[3] or neutralCandle[4]) and
+                (Close > Close[1])) then
+               begin
+                 if (BuyPosition = 0) and 
+                    (Close > Open) then
+                   begin
+                     BuyAtMarket;
+                     SellShortStop(Close-stopInit+stopVarianceInit, Close-stopInit);                     
+                   end;
+                 PaintBar(clLime);
+               end
+            else if (sellSignal and
+                    (neutralCandle[1] or neutralCandle[2] or
+                     neutralCandle[3] or neutralCandle[4]) and
+                    (Close < Close[1])) then
+               begin
+                 if (SellPosition = 0) and
+                    (Close < Open) then
+                   begin
+                     SellShortAtMarket;
+                     BuyStop(Close+stopInit-stopVarianceInit, Close+stopInit);                  
+                   end;
+                 PaintBar(clRed);
+               end
+            else
+               begin
+                 //PaintBar(clWhite);
+                 CancelPendingOrders;
+                 if (BuyPosition >= 1) then
+                   SellToCoverAtMarket;
+                 if (SellPosition >= 1) then
+                   BuyToCoverAtMarket;
+                               
+               end; 
+        end; // END 03
+   end; // END 02 
+end; // END 01
