@@ -1,0 +1,101 @@
+input
+  StochasticPeriod(8);
+  FastPeriodMMs(9);
+  MediumPeriodMMs(21);
+  
+var
+  sFastMMs   : Float;
+  sMediumMMs : Float;
+  sSlotStochastic : Float;
+  pfrSignalCompra : Boolean;
+  pfrSignalVenda : Boolean;
+  stop : Float;
+
+begin
+
+  // Verificacao para fechar trades ao final do dia.  
+  if (TIME >= 1745) or (TIME <= 0902) then
+    begin
+      CancelPendingOrders;
+      if (BuyPosition >= 1) then
+        SellToCoverAtMarket;
+      if (SellPosition >= 1) then
+        BuyToCoverAtMarket;
+    end
+
+  else 
+    begin
+      sFastMMs := MediaExp(FastPeriodMMs, Close);
+      sMediumMMs := Media(MediumPeriodMMs, Close);
+      sSlotStochastic := SlowStochastic(StochasticPeriod); 
+      plot(sFastMMs);
+      plot2(sMediumMMs);
+      
+      // Sinal do setup PFR para Venda
+      pfrSignalVenda := (Close < Close[1]) and 
+                   (Highest(High,2) >Highest(High,2)[1]) and 
+                   (sSlotStochastic > 80);
+
+      // Sinal do setup PFR para Compra 
+      pfrSignalCompra := (Close > Close[1]) and 
+                   (lowest(Low,2) < lowest(Low,2)[1]) and 
+                   (sSlotStochastic < 20);
+
+      // Stop em pontos. Funcionou bem ate o limite de 2 candles
+      // Acima disso o comportamento ficou errado no backtest. 
+      // TODO: investigar como setar stops maiores. 
+      stop := 17; // 17: 2 candles no WDO 18R
+                  //  7: 2 candles no WDO 8R
+                  //  6: 2 candles no WDO 7R
+
+//      // Stop na venda caso o estocastico fique abaixo de 20
+//      if (sSlotStochastic < 20) and
+//         (SellPosition >= 1) then
+//        begin               
+//           BuyToCoverAtMarket;
+//           PaintBar(clYellow);
+//        end
+//      // Stop na compra caso o estocastico fique acima de 80
+//      else if (sSlotStochastic > 80) and
+//              (BuyPosition >= 1) then
+//        begin               
+//           SellToCoverAtMarket;
+//           PaintBar(clYellow);
+//        end
+      // Trailing stop na venda 
+      if (SellPosition >= 1) and 
+              (Close < Close[1])then
+        begin
+           CancelPendingOrders;
+           BuyToCoverStop(Close+stop, Close+stop);
+           PaintBar(clMaroon); 
+        end
+      // Trailing stop na compra
+      else if (BuyPosition >= 1) and 
+              (Close > Close[1])then
+        begin
+           CancelPendingOrders;
+           SellToCoverStop(Close-stop, Close-stop);
+           PaintBar(clGreen); 
+        end
+      // Analise para entrada na venda  
+      else if (pfrSignalVenda) and
+              (SellPosition=0)  and
+              (sMediumMMs < sMediumMMs[1]) then
+              //(sFastMMs < sFastMMs[1]) then
+        begin               
+           SellShortAtMarket;
+           BuyToCoverStop(Close+stop, Close+stop);
+           PaintBar(clRed);
+        end
+      // Analise para entrada na compra 
+      else if (pfrSignalCompra) and
+              (BuyPosition=0) then 
+              //(sFastMMs > sFastMMs[1]) then
+        begin               
+           BuyAtMarket;
+           SellToCoverStop(Close-stop, Close-stop);
+           PaintBar(clLime);
+        end; 
+    end;
+end;
