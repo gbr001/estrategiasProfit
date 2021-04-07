@@ -1,4 +1,4 @@
-// Autor: Gustavo Brand
+// Autor: Gustavo Brand (TODO colocar email)
 // Fonte: Canal Viver de Trade no youtube
 
 // Alvo principal: WDO com renko (7R ou 8R) no intraday
@@ -30,6 +30,8 @@ var
   sFastMACD   : Float;
   sSignalMACD : Float;
   macdval : Float;
+  macdDiff : Float;
+  macdTrend : Float;
   macdmargin : Float; //Margem de aceite da operacao quando 
                       //em torno de 0. Valor de +- 1 para WDO 15R.
 
@@ -40,13 +42,16 @@ var
   buySignal : Boolean;
   sellSignal : Boolean;
   neutralCandle : Boolean;
+  macdPositiveTrend : Boolean;
+  macdNegativeTrend : Boolean;
+
   i : Integer;
 
 begin // BEGIN 01
 
-  stopInit := 9; // Stops em 3 candles: 15R=21; 8R=9.5; 7R=9 
+  stopInit := 21; // Stops em 3 candles: 15R=21; 8R=9.5; 7R=9 
   stopVarianceInit := 0;
-  stopTrailing := 9; // Stops em 3 candles: 15R=21; 8R=9.5; 7R=9
+  stopTrailing := 21; // Stops em 3 candles: 15R=21; 8R=9.5; 7R=9
   macdmargin := 0;   
 
   buySignal := false;
@@ -69,10 +74,11 @@ begin // BEGIN 01
       if (BuyPosition >= 1) then
         begin
           // Se o candle anterior eh de alta, subir o stop
-          if (Close[1] > Open[1])  then
+          if (Close[1] > Open[1]) then
             begin
               CancelPendingOrders;
               SellShortStop(Open-stopTrailing, Open-stopTrailing);
+              //SellShortStop(Close-stopTrailing, Close-stopTrailing);
               PaintBar(clGreen);
             end;
           // Mas se o candle atual eh de baixa, stopar a mercado
@@ -92,7 +98,8 @@ begin // BEGIN 01
             begin
               CancelPendingOrders;
               BuyToCoverStop(Open+stopTrailing, Open+stopTrailing);
-              PaintBar(clPurple);
+              //BuyToCoverStop(Close+stopTrailing, Close+stopTrailing);
+              PaintBar(clMaroon);
             end;
           // Mas se o candle atual eh de alta, stopar a mercado
           if (Open > Close[1]) then // ou Close > Open
@@ -129,23 +136,35 @@ begin // BEGIN 01
 
             neutralCandle := ((Close <= s2MVHigh) and (Close >= s2MVLow));
 
+            if (sSignalMACD > macdval) then
+               macdDiff := sSignalMACD - macdval
+            else 
+               macdDiff := macdval - sSignalMACD;
+            //macdDiff := Abs(sSignalMACD - macdval);
+            macdTrend := sSignalMACD - macdval;
+
             i:=0;
             buySignal := (Close[i] > sFastMMs[i]) and 
                (Close[i] > sMediumMMs[i]) and
                (sSignalMACD[i] > (sLongMACD[i] - sFastMACD[i])-macdmargin) and
                (Close[i] > s2MVHigh[i]) and  //Caso positivo do 2MV_Padrao
-               ((sSignalMACD[i] - (sLongMACD[i] - sFastMACD[i])) < 15 );
-            
+               ((sSignalMACD[i] - (sLongMACD[i] - sFastMACD[i])) < 15 ) ;//and
+               //((macdDiff < macdDiff[1]) and ((macdDiff[1] < macdDiff[2])));
+               //((macdTrend[2] < macdTrend[1]) and (macdTrend[1] < macdTrend));
+               
             i:=0;      
             sellSignal := (Close[i] < sFastMMs[i]) and 
                (Close[i] < sMediumMMs[i]) and
                (sSignalMACD[i] < (sLongMACD[i] - sFastMACD[i])+macdmargin) and
                (Close[i] < s2MVLow[i])  and  //Caso negativo do 2MV_Padrao    
-               (((sLongMACD[i] - sFastMACD[i]) - sSignalMACD[i]) < 15 );
-                  
+               (((sLongMACD[i] - sFastMACD[i]) - sSignalMACD[i]) < 15 ) and
+               //((macdDiff > 1) and (macdDiff[1] > 1) and (macdDiff[2] > 1)) and
+               ((macdTrend[2] > macdTrend[1]) and (macdTrend[1] > macdTrend));
+                    
             if (buySignal and
                (neutralCandle[1] or neutralCandle[2] or 
-                neutralCandle[3] or neutralCandle[4]) and
+                neutralCandle[3] or neutralCandle[4] or
+                neutralCandle[5] or neutralCandle[6]) and 
                 (Close > Close[1])) then
                begin
                  if (BuyPosition = 0) and 
@@ -156,13 +175,15 @@ begin // BEGIN 01
                    end;
                  PaintBar(clLime);
                end
-            else if (sellSignal and
+            else if (sellSignal) and
                     (neutralCandle[1] or neutralCandle[2] or
-                     neutralCandle[3] or neutralCandle[4]) and
-                    (Close < Close[1])) then
-               begin
+                     neutralCandle[3] or neutralCandle[4] or
+                     neutralCandle[5] or neutralCandle[6]) and
+                    (Close < Close[1]) then
+               begin                
                  if (SellPosition = 0) and
-                    (Close < Open) then
+                    (Close < Open) then // and
+                     //not((macdDiff < 1) and (macdDiff[1] < 1) and (macdDiff[2] < 1))then
                    begin
                      SellShortAtMarket;
                      BuyStop(Close+stopInit-stopVarianceInit, Close+stopInit);                  
@@ -177,7 +198,9 @@ begin // BEGIN 01
                    SellToCoverAtMarket;
                  if (SellPosition >= 1) then
                    BuyToCoverAtMarket;
-                               
+                 if (not(Close[i] > s2MVHigh[i]) and
+                     not(Close[i] < s2MVLow[i])) then
+                   PaintBar(clGray);              
                end; 
         end; // END 03
    end; // END 02 
