@@ -148,9 +148,9 @@ begin // BEGIN 01
                (Close[i] > sMediumMMs[i]) and
                (sSignalMACD[i] > (sLongMACD[i] - sFastMACD[i])-macdmargin) and
                (Close[i] > s2MVHigh[i]) and  //Caso positivo do 2MV_Padrao
-               ((sSignalMACD[i] - (sLongMACD[i] - sFastMACD[i])) < 15 ) ;//and
+               ((sSignalMACD[i] - (sLongMACD[i] - sFastMACD[i])) < 15 ) and
                //((macdDiff < macdDiff[1]) and ((macdDiff[1] < macdDiff[2])));
-               //((macdTrend[2] < macdTrend[1]) and (macdTrend[1] < macdTrend));
+               ((macdTrend[2] < macdTrend[1]) and (macdTrend[1] < macdTrend));
                
             i:=0;      
             sellSignal := (Close[i] < sFastMMs[i]) and 
@@ -168,7 +168,8 @@ begin // BEGIN 01
                 (Close > Close[1])) then
                begin
                  if (BuyPosition = 0) and 
-                    (Close > Open) then
+                    (Close > Open) and 
+                    not((macdDiff < 1) and (macdDiff[1] < 1) and (macdDiff[2] < 1))then
                    begin
                      BuyAtMarket;
                      SellShortStop(Close-stopInit+stopVarianceInit, Close-stopInit);                     
@@ -182,8 +183,8 @@ begin // BEGIN 01
                     (Close < Close[1]) then
                begin                
                  if (SellPosition = 0) and
-                    (Close < Open) then // and
-                     //not((macdDiff < 1) and (macdDiff[1] < 1) and (macdDiff[2] < 1))then
+                    (Close < Open)  and
+                     not((macdDiff < 1) and (macdDiff[1] < 1) and (macdDiff[2] < 1))then
                    begin
                      SellShortAtMarket;
                      BuyStop(Close+stopInit-stopVarianceInit, Close+stopInit);                  
