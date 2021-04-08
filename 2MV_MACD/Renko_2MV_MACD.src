@@ -59,7 +59,7 @@ begin // BEGIN 01
   neutralCandle := false;
 
   // Verificacao para fechar trades ao final do dia.  
-  if (TIME >= 1745) or (TIME <= 0902) then
+  if (TIME >= 1745) or (TIME <= 0905) then
     begin
       CancelPendingOrders;
       if (BuyPosition >= 1) then
