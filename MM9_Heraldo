@@ -1,0 +1,114 @@
+// Estrategia analisada com Heraldo do grupo Estudos de Mercado
+// Grupo disponivel para acesso via Discord em https://discord.gg/fb8ztSns
+
+// Tempo grafico no WDO 8R ou 7R.
+// Apos a correta colocacao de horarios limite (das 9:05 em diante) o 
+// backtest de jan/21 a mar/21 foi negativo. 
+
+// TODO: estudar melhor stops e periodos, pois esta gerando muitas operacoes.
+
+
+input
+  FastPeriod(9);
+  mPeriod(17);
+  sPeriod(50);
+  ssPeriod(200);
+
+var
+  stopCandles      : Integer;
+  stopCandlesInit  : Integer;
+  stopVariance     : Float;
+  stopVarianceInit : Float;
+  checkFinalDia    : Integer;
+  checkFinalDiaMin : Integer;
+  sFast      : Float;
+  sMedium    : Float;
+  sSlow      : Float;
+  sSuperSlow : Float;
+
+  horarioInicial : Integer;
+  horarioFinal : Integer;
+
+begin
+
+  sFast := Media(FastPeriod,Close);
+  sMedium := Media(mPeriod,Close);
+  sSlow := Media(sPeriod,Close);
+  sSuperSlow := Media(ssPeriod,Close);
+
+  checkFinalDia := LastCalcTime;
+  checkFinalDiaMin := TimeToMinutes(checkFinalDia);
+
+  stopCandles := 1;
+  stopVariance := 2;
+  stopCandlesInit := 1;
+  stopVarianceInit := 0;
+
+  plot(sFast);
+  plot2(sSlow);
+
+  horarioInicial := 0905;
+  horarioFinal := 1745;
+  // Verificacao para fechar trades ao final do dia.  
+  if (TIME <= horarioInicial) or 
+     (TIME >= horarioFinal) then
+    begin
+      CancelPendingOrders;
+      if (BuyPosition >= 1) then
+        SellToCoverAtMarket;
+      if (SellPosition >= 1) then
+        BuyToCoverAtMarket;
+    end
+  else 
+    begin
+      // Em caso de posicao comprada, subir o stop ou stopar o trade
+      if (BuyPosition >= 1) then
+        begin
+          // Se o candle anterior eh de alta, subir o stop
+          if (Close[1] > Open[1]) then
+            begin
+              CancelPendingOrders;
+              SellShortStop(Open[stopCandles] + stopVariance,Open[stopCandles]);
+              PaintBar(clGreen);
+            end;
+        end
+      // Em caso de posicao vendida, baixar o stop ou stopar o trade
+      else if (SellPosition >= 1) then
+        begin
+          // Se o candle anterior eh de baixa, baixar o stop
+          if (Close[1] < Open[1]) then
+            begin
+              CancelPendingOrders;
+              BuyToCoverStop(Open[stopCandles] - stopVariance,Open[stopCandles]);
+              PaintBar(clMaroon);
+            end;
+        end
+      else 
+        begin
+          if (Fechamento > Fechamento[1]) and 
+             (media(9,Close) > media(9,Open)[1]) and
+             (Abertura > media(9,Open)[1]) then //and
+             //(sSlow > sSlow[1]) then
+            begin
+              if (BuyPosition = 0) then
+                begin
+                  BuyAtMarket;
+                  SellToCoverStop(Open[stopCandlesInit] + stopVarianceInit,Open[stopCandlesInit]);
+                  PaintBar(clLime);
+                end;
+            end
+          else if (Fechamento < Fechamento[1]) and 
+                  (media(9,Close) < media(9,Open)[1]) and 
+                  (Abertura < media(9,Open)[1]) then //and
+                  //(sSlow < sSlow[1]) then
+            begin
+              if (SellPosition = 0) then
+                begin
+                  SellShortAtMarket;
+                  BuyToCoverStop(Open[stopCandlesInit] - stopVarianceInit,Open[stopCandlesInit]);
+                  PaintBar(clRed);
+                end;
+            end;
+        end;
+    end;
+end;
