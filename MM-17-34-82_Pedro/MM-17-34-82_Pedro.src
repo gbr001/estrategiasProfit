@@ -1,0 +1,194 @@
+// Estrategia analisada com Pedro do grupo Estudos de Mercado
+// Grupo disponivel para acesso via Discord em https://discord.gg/fb8ztSns
+
+// Tempo grafico no WDO 8R.
+
+input
+  FastPeriod(17);
+  MediumPeriod(34);
+  LowPeriod(82);
+  SuperLowPeriod(305);
+
+var
+  sFast            : Float;
+  sMedium          : Float;
+  sLow             : Float;
+  superLow         : Float;
+  compraDone       : Boolean;
+  vendaDone        : Boolean;
+  sifr             : Float;
+
+  stopCandles      : Integer;
+  stopCandlesInit  : Integer;
+  stopVariance     : Float;
+  stopVarianceInit : Float;
+  checkFinalDia    : Integer;
+  checkFinalDiaMin : Integer;
+
+  agressorBalance : Float;
+  agressorBuy : Float;
+  agressorSell : Float;
+  agreessorRate : Float;
+  agressorRateToSell : Float;
+  agressorRateToBuy : Float;
+
+  horarioInicial : Integer;
+  horarioFinal : Integer;
+
+begin
+
+  sFast := MediaExp(FastPeriod,Close);
+  sMedium := MediaExp(MediumPeriod,Close);
+  sLow := MediaExp(LowPeriod,Close);
+  superLow := Media(SuperLowPeriod,Close);
+  sifr := ifr(9);
+  checkFinalDia := LastCalcTime;
+  checkFinalDiaMin := TimeToMinutes(checkFinalDia);
+
+// Config inicial com lucro
+//  stopCandles := 1;
+//  stopVariance := 0;
+//  stopCandlesInit := 0;
+//  stopVarianceInit := -1;
+
+// Config com 45% de acerto e 16K de dez/20 a fev/21 1xWDO 8R 
+//  stopCandles := 1;
+//  stopVariance := 1;
+//  stopCandlesInit := 0;
+//  stopVarianceInit := -1;
+
+  stopCandles := 1;
+  stopVariance := 1; // Em fev/21 o valor de 3.5 teve uma melhor performace, TODO: analisar.
+  stopCandlesInit := 0;
+  stopVarianceInit := -1;
+
+  agressorBalance := AgressionVolBalance;
+  agressorBuy := AgressionVolBuy;
+  agressorSell := AgressionVolSell;
+  agreessorRate := 0;
+  agressorRateToSell := 0.5;
+  agressorRateToBuy := 0.5;
+  
+  horarioInicial := 1030;
+  horarioFinal := 1730;
+  // Verificacao para fechar trades ao final do dia.  
+  if (TIME <= horarioInicial) or 
+     (TIME >= horarioFinal) then
+    begin
+      CancelPendingOrders;
+      if (BuyPosition >= 1) then
+        SellToCoverAtMarket;
+      if (SellPosition >= 1) then
+        BuyToCoverAtMarket;
+    end
+
+  else 
+    begin
+      // Em caso de posicao comprada, subir o stop ou stopar o trade
+      if (BuyPosition >= 1) then
+        begin
+          // Se o candle anterior eh de alta, subir o stop
+          if (Close[1] > Open[1])  then
+            begin
+              CancelPendingOrders;
+              SellShortStop(Open[stopCandles]+stopVariance,Open[stopCandles]);
+              //PaintBar(clPurple);
+            end;
+          // Mas se o candle atual eh de baixa, stopar a mercado
+          if (Open < Close[1]) then // ou (Close < Open)
+            begin
+              CancelPendingOrders;        
+              SellToCoverAtMarket;
+              PaintBar(clYellow);
+          end;
+        end;
+      // Em caso de posicao vendida, baixar o stop ou stopar o trade
+      if (SellPosition >= 1) then
+        begin
+          // Se o candle anterior eh de baixa, baixar o stop
+          if (Close[1] < Open[1]) then
+            begin
+              CancelPendingOrders;
+              BuyToCoverStop(Open[stopCandles]-stopVariance,Open[stopCandles]);
+              //PaintBar(clPurple);
+            end;
+          // Mas se o candle atual eh de alta, stopar a mercado
+          if (Open > Close[1]) then // ou Close > Open
+            begin
+              CancelPendingOrders;        
+              BuyToCoverAtMarket;
+              PaintBar(clYellow);
+            end;
+        end;
+
+      if ((agressorBuy+agressorSell) > 0) then 
+           agreessorRate := (agressorBuy/(agressorBuy+agressorSell));
+
+      // Ponto de decisao para começar um trade na compra
+      if 
+         //((Close > sLow) and (Open > sLow)) and 
+         ((sFast > sMedium) and (sMedium > sLow)) and 
+         (
+           (((sFast > sFast[1]) and (sFast[1] > sFast[2])) and 
+           ((sMedium > sMedium[1]) and (sMedium[1] > sMedium[2])) and 
+           ((sLow > sLow[1]) and (sLow[1] > sLow[2]))) 
+           or
+           (((sFast < sFast[1])) and 
+           ((sMedium < sMedium[1])) and 
+           ((sLow < sLow[1])))
+         ) and 
+         (Close > Close[1]) and
+         (agreessorRate > agressorRateToBuy) then
+        begin
+          //PaintBar(clGreen);
+          if ((Close[1] < Open[1]) and (Close > Open)) then
+            begin
+              if (BuyPosition = 0) then
+                begin
+                  BuyAtMarket;
+                  SellToCoverStop(Open[stopCandlesInit]+stopVarianceInit,Open[stopCandlesInit]);
+                  if (Close >= Close[1]+3.5) then
+                    PaintBar(clGreen);
+                end;
+            end;
+        end;
+
+      if ((agressorBuy+agressorSell) > 0) then 
+           agreessorRate := (agressorSell/(agressorBuy+agressorSell));
+
+      // Ponto de decisao para começar um trade na venda
+      if 
+         //((Close < sLow) and (Open < sLow)) and 
+         ((sFast < sMedium) and (sMedium < sLow)) and 
+         (
+           (((sFast < sFast[1])) and 
+           ((sMedium < sMedium[1])) and 
+           ((sLow < sLow[1]))) 
+           or
+           (((sFast > sFast[1]) and (sFast[1] > sFast[2])) and 
+           ((sMedium > sMedium[1]) and (sMedium[1] > sMedium[2])) and 
+           ((sLow > sLow[1]) and (sLow[1] > sLow[2])))
+         ) and 
+         (Close < Close[1]) and
+         (agreessorRate > agressorRateToSell) then
+        begin
+          //PaintBar(clRed);
+          if ((Close[1] > Open[1]) and (Close < Open)) then
+            begin
+              if (SellPosition = 0) then
+                begin
+                  SellShortAtMarket;
+                  BuyToCoverStop(Open[stopCandlesInit]-stopVarianceInit,Open[stopCandlesInit]);
+                  if (Close <= Close[1]-3.5) then
+                    PaintBar(clRed);
+                end;
+            end;
+        end;
+
+      Plot(sFast);
+      Plot2(sMedium);
+      Plot3(sLow);
+
+    end;
+
+end;
