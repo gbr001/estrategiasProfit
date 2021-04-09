@@ -71,17 +71,20 @@ begin
   
   horarioInicial := 1030;
   horarioFinal := 1730;
+
   // Verificacao para fechar trades ao final do dia.  
   if (TIME <= horarioInicial) or 
      (TIME >= horarioFinal) then
     begin
       CancelPendingOrders;
-      if (BuyPosition >= 1) then
-        SellToCoverAtMarket;
-      if (SellPosition >= 1) then
-        BuyToCoverAtMarket;
+      ClosePosition;
     end
-
+//  else if (Friday = 5) and
+//          (TIME >= 1530) then 
+//    begin
+//      CancelPendingOrders;
+//      ClosePosition;
+//    end
   else 
     begin
       // Em caso de posicao comprada, subir o stop ou stopar o trade
