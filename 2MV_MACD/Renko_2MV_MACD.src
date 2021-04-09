@@ -46,20 +46,25 @@ var
   macdNegativeTrend : Boolean;
 
   i : Integer;
+  horarioInicial : Integer;
+  horarioFinal : Integer;
 
 begin // BEGIN 01
 
-  stopInit := 21; // Stops em 3 candles: 15R=21; 8R=9.5; 7R=9 
+  stopInit := 9.5; // Stops em 3 candles: 15R=21; 8R=9.5; 7R=9 
   stopVarianceInit := 0;
-  stopTrailing := 21; // Stops em 3 candles: 15R=21; 8R=9.5; 7R=9
+  stopTrailing := 9.5; // Stops em 3 candles: 15R=21; 8R=9.5; 7R=9
   macdmargin := 0;   
 
   buySignal := false;
   sellSignal := false;
   neutralCandle := false;
 
+  horarioInicial := 1030;
+  horarioFinal := 1730;
   // Verificacao para fechar trades ao final do dia.  
-  if (TIME >= 1745) or (TIME <= 0905) then
+  if (TIME <= horarioInicial) or 
+     (TIME >= horarioFinal) then
     begin
       CancelPendingOrders;
       if (BuyPosition >= 1) then
@@ -168,13 +173,13 @@ begin // BEGIN 01
                 (Close > Close[1])) then
                begin
                  if (BuyPosition = 0) and 
-                    (Close > Open) and 
-                    not((macdDiff < 1) and (macdDiff[1] < 1) and (macdDiff[2] < 1))then
+                    (Close > Open) then //and 
+                    //not((macdDiff < 1) and (macdDiff[1] < 1) and (macdDiff[2] < 1))then
                    begin
                      BuyAtMarket;
                      SellShortStop(Close-stopInit+stopVarianceInit, Close-stopInit);                     
-                   end;
-                 PaintBar(clLime);
+                     PaintBar(clLime);
+                   end;                 
                end
             else if (sellSignal) and
                     (neutralCandle[1] or neutralCandle[2] or
@@ -183,13 +188,13 @@ begin // BEGIN 01
                     (Close < Close[1]) then
                begin                
                  if (SellPosition = 0) and
-                    (Close < Open)  and
-                     not((macdDiff < 1) and (macdDiff[1] < 1) and (macdDiff[2] < 1))then
+                    (Close < Open) then // and
+                     //not((macdDiff < 1) and (macdDiff[1] < 1) and (macdDiff[2] < 1))then
                    begin
                      SellShortAtMarket;
                      BuyStop(Close+stopInit-stopVarianceInit, Close+stopInit);                  
+                     PaintBar(clRed);
                    end;
-                 PaintBar(clRed);
                end
             else
                begin
@@ -199,9 +204,9 @@ begin // BEGIN 01
                    SellToCoverAtMarket;
                  if (SellPosition >= 1) then
                    BuyToCoverAtMarket;
-                 if (not(Close[i] > s2MVHigh[i]) and
-                     not(Close[i] < s2MVLow[i])) then
-                   PaintBar(clGray);              
+//                 if (not(Close[i] > s2MVHigh[i]) and
+//                     not(Close[i] < s2MVLow[i])) then
+//                   PaintBar(clGray);              
                end; 
         end; // END 03
    end; // END 02 
