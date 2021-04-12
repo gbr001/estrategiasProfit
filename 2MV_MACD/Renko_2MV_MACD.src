@@ -30,6 +30,7 @@ var
   sFastMACD   : Float;
   sSignalMACD : Float;
   macdval : Float;
+  macdval2 : Float;
   macdDiff : Float;
   macdTrend : Float;
   macdmargin : Float; //Margem de aceite da operacao quando 
@@ -60,8 +61,31 @@ begin // BEGIN 01
   sellSignal := false;
   neutralCandle := false;
 
+  // ** Nota importante sobre o algoritmo no Profit:
+  //    Para se ter os valores de indicadores e medias 
+  //    calculados corretametne eh preciso que eles 
+  //    sejam executados em todos os momentos e nao somente
+  //    dentro de alguma condicao if/else.
+
+  sFastMMs := MediaExp(FastPeriodMMs,Close);
+  sMediumMMs := MediaExp(MediumPeriodMMs,Close); 
+
+  macdval := MACD(LongPeriodMACD, FastPeriodMACD, SignalPeriodMACD)|0|;
+  sSignalMACD := MediaExp(SignalPeriodMACD, macdval);
+  macdTrend := macdval - sSignalMACD ;
+  plot(macdval);
+  plot2(sSignalMACD); // media que parece o traco mais longo
+
+  // TODO melhorar:
+  // 1. apos uma saida por stop reentrar somente em um candle na direcao
+  // 2. reajustar stop somente em candles na direcao
+
+  s2MVHigh := Media(TwoMVPeriod, High); // de forma simples: Media(20, High) 
+  s2MVLow := Media(TwoMVPeriod, Low);   // de forma simples: Media(20, Low)
+  neutralCandle := ((Close <= s2MVHigh) and (Close >= s2MVLow));
+
   horarioInicial := 1030;
-  horarioFinal := 1730;
+  horarioFinal := 1650;
   // Verificacao para fechar trades ao final do dia.  
   if (TIME <= horarioInicial) or 
      (TIME >= horarioFinal) then
@@ -117,53 +141,21 @@ begin // BEGIN 01
 
       if (BuyPosition = 0) and (SellPosition = 0) then
         begin // BEGIN 03
-  
-            sFastMMs := MediaExp(FastPeriodMMs,Close);
-            sMediumMMs := MediaExp(MediumPeriodMMs,Close); 
-          
-            sFastMACD := MediaExp(FastPeriodMACD,Close);
-            sLongMACD := MediaExp(LongPeriodMACD,Close); 
-            //macdval := MACD(150, 14, 14);
-            macdval := sLongMACD - sFastMACD;
-            sSignalMACD := MediaExp(SignalPeriodMACD, macdval);
-          
-//            plot (sFastMMs);
-//            plot2 (sMediumMMs); 
-             plot3(macdval);
-             plot4(sSignalMACD); // media que parece o traco mais longo
-          
-            // TODO melhorar:
-            // 1. apos uma saida por stop reentrar somente em um candle na direcao
-            // 2. reajustar stop somente em candles na direcao
-
-            s2MVHigh := Media(TwoMVPeriod, High); // de forma simples: Media(20, High) 
-            s2MVLow := Media(TwoMVPeriod, Low);   // de forma simples: Media(20, Low)
-
-            neutralCandle := ((Close <= s2MVHigh) and (Close >= s2MVLow));
-
-            if (sSignalMACD > macdval) then
-               macdDiff := sSignalMACD - macdval
-            else 
-               macdDiff := macdval - sSignalMACD;
-            //macdDiff := Abs(sSignalMACD - macdval);
-            macdTrend := sSignalMACD - macdval;
 
             i:=0;
             buySignal := (Close[i] > sFastMMs[i]) and 
                (Close[i] > sMediumMMs[i]) and
-               (sSignalMACD[i] > (sLongMACD[i] - sFastMACD[i])-macdmargin) and
+               (macdval-macdmargin > sSignalMACD[i]) and
                (Close[i] > s2MVHigh[i]) and  //Caso positivo do 2MV_Padrao
-               ((sSignalMACD[i] - (sLongMACD[i] - sFastMACD[i])) < 15 ) and
-               //((macdDiff < macdDiff[1]) and ((macdDiff[1] < macdDiff[2])));
+               (macdval[i] - sSignalMACD[i] < 15 ) and
                ((macdTrend[2] < macdTrend[1]) and (macdTrend[1] < macdTrend));
                
             i:=0;      
             sellSignal := (Close[i] < sFastMMs[i]) and 
                (Close[i] < sMediumMMs[i]) and
-               (sSignalMACD[i] < (sLongMACD[i] - sFastMACD[i])+macdmargin) and
+               (macdval+macdmargin < sSignalMACD[i]) and
                (Close[i] < s2MVLow[i])  and  //Caso negativo do 2MV_Padrao    
-               (((sLongMACD[i] - sFastMACD[i]) - sSignalMACD[i]) < 15 ) and
-               //((macdDiff > 1) and (macdDiff[1] > 1) and (macdDiff[2] > 1)) and
+               ((macdval[i] - sSignalMACD[i]) < 15 ) and
                ((macdTrend[2] > macdTrend[1]) and (macdTrend[1] > macdTrend));
                     
             if (buySignal and
