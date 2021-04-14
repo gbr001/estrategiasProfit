@@ -25,6 +25,9 @@ var
   sMediumMMs : Float;
   s2MVHigh : Float;
   s2MVLow : Float; 
+  sMediumMMsMax : Float;
+  sMediumMMsMin : Float;
+  sMediumMMConstant : Float;
 
   sLongMACD   : Float; 
   sFastMACD   : Float;
@@ -52,38 +55,56 @@ var
 
 begin // BEGIN 01
 
+  // Setup do valor de trailing stop desejado.
+  // Nesse momento isso não tem muita funcionalidade
+  // pois as saidas estao ocorrendo pela ocorrencia de
+  // um candle invertido/contrario. É uma melhoria a se 
+  // fazer realizar um trailing stop decente.
   stopInit := 9.5; // Stops em 3 candles: 15R=21; 8R=9.5; 7R=9 
   stopVarianceInit := 0;
   stopTrailing := 9.5; // Stops em 3 candles: 15R=21; 8R=9.5; 7R=9
   macdmargin := 0;   
 
+  // Variaveis de controle para sinalizar entrada na compra, venda
+  // ou se o 2MV_Padrao está neutro, sem sinalizacao positiva ou negativa 
   buySignal := false;
   sellSignal := false;
   neutralCandle := false;
 
-  // ** Nota importante sobre o algoritmo no Profit:
-  //    Para se ter os valores de indicadores e medias 
-  //    calculados corretametne eh preciso que eles 
-  //    sejam executados em todos os momentos e nao somente
-  //    dentro de alguma condicao if/else.
+  // Nota importante sobre o algoritmo no Profit:
+  // Para se ter os valores de indicadores e medias 
+  // calculados corretametne eh preciso que eles 
+  // sejam executados em todos os momentos e nao somente
+  // dentro de alguma condicao if/else.
 
   sFastMMs := MediaExp(FastPeriodMMs,Close);
-  sMediumMMs := MediaExp(MediumPeriodMMs,Close); 
+  sMediumMMs := MediaExp(MediumPeriodMMs,Close);
 
+  // Faixa em que na mm72 pode-se detectar um comportamento lateral.
+  // Nesse caso, é verificado se em um intervalo/canal muito fino
+  // os candles não estão em tendencia lateral.
+  // TODO: analisar se faz sentido, pois diminiu o rendimento em backtests 
+  sMediumMMConstant := 0.00001; // Valor de 0.000026 para cima impediu operacoes de exemplo stopadas entre 11 e 12h de 13/abr/2021. 
+  sMediumMMsMax := sMediumMMs*(1+sMediumMMConstant);        
+  sMediumMMsMin := sMediumMMs*(1-sMediumMMConstant);
+
+  // Calculo do MACD, sinal do MACD e calculo manual do histograma
+  // em macdTrend. Através desse ultimo conseguimos detectar se 
+  // o MACD está em tendencia (seja positiva ou negativa) para entrar.
   macdval := MACD(LongPeriodMACD, FastPeriodMACD, SignalPeriodMACD)|0|;
   sSignalMACD := MediaExp(SignalPeriodMACD, macdval);
   macdTrend := macdval - sSignalMACD ;
   plot(macdval);
   plot2(sSignalMACD); // media que parece o traco mais longo
 
-  // TODO melhorar:
-  // 1. apos uma saida por stop reentrar somente em um candle na direcao
-  // 2. reajustar stop somente em candles na direcao
-
+  // Calculo do indicador 2MV_Padrao
   s2MVHigh := Media(TwoMVPeriod, High); // de forma simples: Media(20, High) 
   s2MVLow := Media(TwoMVPeriod, Low);   // de forma simples: Media(20, Low)
   neutralCandle := ((Close <= s2MVHigh) and (Close >= s2MVLow));
 
+  // Horarios limite de negociacao da estrategia
+  // Em backtests foi verificado em operações durante a 1a hora
+  // geravam menos retorno.
   horarioInicial := 1030;
   horarioFinal := 1650;
   // Verificacao para fechar trades ao final do dia.  
@@ -99,10 +120,13 @@ begin // BEGIN 01
 
   else 
     begin  // BEGIN 02
+      
       // Em caso de posicao comprada, subir o stop ou stopar o trade
       if (BuyPosition >= 1) then
         begin
           // Se o candle anterior eh de alta, subir o stop
+          // Essa condição não é acionada hoje se mantivermos o 
+          // valor de stopTrailing acima de 2 candles.
           if (Close[1] > Open[1]) then
             begin
               CancelPendingOrders;
@@ -123,6 +147,8 @@ begin // BEGIN 01
       if (SellPosition >= 1) then
         begin
           // Se o candle anterior eh de baixa, baixar o stop
+          // Essa condição não é acionada hoje se mantivermos o 
+          // valor de stopTrailing acima de 2 candles.
           if (Close[1] < Open[1]) then
             begin
               CancelPendingOrders;
@@ -139,29 +165,37 @@ begin // BEGIN 01
             end;
         end;
 
+      // Caso não se esteja nem comprado, nem vendido vamos
+      // analisar se temos sinal de compra ou venda.
       if (BuyPosition = 0) and (SellPosition = 0) then
         begin // BEGIN 03
 
-            i:=0;
-            buySignal := (Close[i] > sFastMMs[i]) and 
-               (Close[i] > sMediumMMs[i]) and
-               (macdval-macdmargin > sSignalMACD[i]) and
-               (Close[i] > s2MVHigh[i]) and  //Caso positivo do 2MV_Padrao
-               (macdval[i] - sSignalMACD[i] < 15 ) and
+            // Variavel que contabiliza a maior parte do setup para compra
+            buySignal := (Close > sFastMMs) and 
+               (Close > sMediumMMs) and
+               (macdval-macdmargin > sSignalMACD) and
+               (Close > s2MVHigh) and  //Caso positivo do 2MV_Padrao
+               (macdval - sSignalMACD < 15 ) and
                ((macdTrend[2] < macdTrend[1]) and (macdTrend[1] < macdTrend));
-               
-            i:=0;      
-            sellSignal := (Close[i] < sFastMMs[i]) and 
-               (Close[i] < sMediumMMs[i]) and
-               (macdval+macdmargin < sSignalMACD[i]) and
-               (Close[i] < s2MVLow[i])  and  //Caso negativo do 2MV_Padrao    
-               ((macdval[i] - sSignalMACD[i]) < 15 ) and
+            
+            // Variavel que contabiliza a maior parte do setup para venda   
+            sellSignal := (Close < sFastMMs) and 
+               (Close < sMediumMMs) and
+               (macdval+macdmargin < sSignalMACD) and
+               (Close < s2MVLow)  and  //Caso negativo do 2MV_Padrao    
+               ((macdval - sSignalMACD) < 15 ) and
                ((macdTrend[2] > macdTrend[1]) and (macdTrend[1] > macdTrend));
-                    
+            
+            // Se verifica 1. se o setup de compra esta valido;
+            // 2. Se temos um candle neutro do 2MV_Padrao dentre os ultimos 6
+            // 3. Se nao estamos em uma lateralizacao
+            // 4. Se o candle atual é de alta
             if (buySignal and
                (neutralCandle[1] or neutralCandle[2] or 
                 neutralCandle[3] or neutralCandle[4] or
                 neutralCandle[5] or neutralCandle[6]) and 
+                (not((sMediumMMs[1] <= sMediumMMsMax) and (sMediumMMs[1] >= sMediumMMsMin)) and
+                 not((sMediumMMs[2] <= sMediumMMsMax) and (sMediumMMs[2] >= sMediumMMsMin))) and
                 (Close > Close[1])) then
                begin
                  if (BuyPosition = 0) and 
@@ -173,10 +207,16 @@ begin // BEGIN 01
                      PaintBar(clLime);
                    end;                 
                end
+            // Se verifica 1. se o setup de venda esta valido;
+            // 2. Se temos um candle neutro do 2MV_Padrao dentre os ultimos 6
+            // 3. Se nao estamos em uma lateralizacao
+            // 4. Se o candle atual é de baixa 
             else if (sellSignal) and
                     (neutralCandle[1] or neutralCandle[2] or
                      neutralCandle[3] or neutralCandle[4] or
                      neutralCandle[5] or neutralCandle[6]) and
+                     (not((sMediumMMs[1] <= sMediumMMsMax) and (sMediumMMs[1] >= sMediumMMsMin)) and
+                      not((sMediumMMs[2] <= sMediumMMsMax) and (sMediumMMs[2] >= sMediumMMsMin))) and 
                     (Close < Close[1]) then
                begin                
                  if (SellPosition = 0) and
@@ -188,6 +228,10 @@ begin // BEGIN 01
                      PaintBar(clRed);
                    end;
                end
+            // Se por acaso tenhamos chegado aqui é por que estamos em uma posicao
+            // que não é de compra nem de venda. Preventivamente esta se fechando
+            // as posicoes, mas talvez nao seja necessario uma vez que ja deve-se 
+            // estar sem posicao ao chegar aqui.
             else
                begin
                  //PaintBar(clWhite);
