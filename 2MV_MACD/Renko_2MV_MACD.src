@@ -36,6 +36,7 @@ var
   macdval2 : Float;
   macdDiff : Float;
   macdTrend : Float;
+  macdMax : Float;
   macdmargin : Float; //Margem de aceite da operacao quando 
                       //em torno de 0. Valor de +- 1 para WDO 15R.
 
@@ -60,10 +61,14 @@ begin // BEGIN 01
   // pois as saidas estao ocorrendo pela ocorrencia de
   // um candle invertido/contrario. É uma melhoria a se 
   // fazer realizar um trailing stop decente.
-  stopInit := 9.5; // Stops em 3 candles: 15R=21; 8R=9.5; 7R=9 
+  stopInit := 13.5; // Stops em 3 candles: 15R=21; 8R=9.5; 7R=9 
   stopVarianceInit := 0;
-  stopTrailing := 9.5; // Stops em 3 candles: 15R=21; 8R=9.5; 7R=9
-  macdmargin := 0;   
+  stopTrailing := 13.5; // Stops em 3 candles: 15R=21; 8R=9.5; 7R=9
+  macdmargin := 0;
+  // Valor do MACD histograma maximo aceito para entrada
+  // TODO: analisar, pois nesse momento nao esta com um valor de corte
+  //       que faca diferenca
+  macdMax := 20;  
 
   // Variaveis de controle para sinalizar entrada na compra, venda
   // ou se o 2MV_Padrao está neutro, sem sinalizacao positiva ou negativa 
@@ -83,8 +88,12 @@ begin // BEGIN 01
   // Faixa em que na mm72 pode-se detectar um comportamento lateral.
   // Nesse caso, é verificado se em um intervalo/canal muito fino
   // os candles não estão em tendencia lateral.
-  // TODO: analisar se faz sentido, pois diminiu o rendimento em backtests 
-  sMediumMMConstant := 0.00001; // Valor de 0.000026 para cima impediu operacoes de exemplo stopadas entre 11 e 12h de 13/abr/2021. 
+  // TODO 1: analisar se faz sentido, pois diminiu o rendimento em backtests
+  //         com um valor de 0.000026 ou 0.00003. 
+  // TODO 2: usar isso em conjunto com a verificacao do MACD histograma ter
+  //         valores menores que 1 (ou algo nesse patamar) em um intervalor
+  //         dos ultimos 3 candles. 
+  sMediumMMConstant := 0.0000001; // Valor de 0.000026 para cima impediu operacoes de exemplo stopadas entre 11 e 12h de 13/abr/2021. 
   sMediumMMsMax := sMediumMMs*(1+sMediumMMConstant);        
   sMediumMMsMin := sMediumMMs*(1-sMediumMMConstant);
 
@@ -175,7 +184,7 @@ begin // BEGIN 01
                (Close > sMediumMMs) and
                (macdval-macdmargin > sSignalMACD) and
                (Close > s2MVHigh) and  //Caso positivo do 2MV_Padrao
-               (macdval - sSignalMACD < 15 ) and
+               (macdTrend < macdMax ) and
                ((macdTrend[2] < macdTrend[1]) and (macdTrend[1] < macdTrend));
             
             // Variavel que contabiliza a maior parte do setup para venda   
@@ -183,10 +192,11 @@ begin // BEGIN 01
                (Close < sMediumMMs) and
                (macdval+macdmargin < sSignalMACD) and
                (Close < s2MVLow)  and  //Caso negativo do 2MV_Padrao    
-               ((macdval - sSignalMACD) < 15 ) and
+               (Abs(macdTrend) < macdMax ) and
                ((macdTrend[2] > macdTrend[1]) and (macdTrend[1] > macdTrend));
             
-            // Se verifica 1. se o setup de compra esta valido;
+            // Se verifica: 
+            // 1. Se o setup de compra esta valido;
             // 2. Se temos um candle neutro do 2MV_Padrao dentre os ultimos 6
             // 3. Se nao estamos em uma lateralizacao
             // 4. Se o candle atual é de alta
@@ -207,7 +217,8 @@ begin // BEGIN 01
                      PaintBar(clLime);
                    end;                 
                end
-            // Se verifica 1. se o setup de venda esta valido;
+            // Se verifica: 
+            // 1. Se o setup de venda esta valido;
             // 2. Se temos um candle neutro do 2MV_Padrao dentre os ultimos 6
             // 3. Se nao estamos em uma lateralizacao
             // 4. Se o candle atual é de baixa 
