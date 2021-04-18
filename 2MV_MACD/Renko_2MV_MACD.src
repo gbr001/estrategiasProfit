@@ -1,16 +1,30 @@
 // Autor: Gustavo Brand (TODO colocar email)
 // Fonte: Canal Viver de Trade no youtube
 
-// Alvo principal: WDO com renko (7R ou 8R) no intraday
+// Alvo principal: WDO com renko 8R no intraday
+// Adaptado e testado com lucro no WIN 35R. 
 
 // Indicacao de coloracao + Compra/Venda:
+
 // Compra: no fechamento acima de medias exp 21 e 72 + 
 //         MADC histograma 150,14,14 acima de 0 + 
-//         apos candle branco do 2MV_Padrao. 
+//         apos candle branco do 2MV_Padrao.
+// TODO: descrever as demais condições ativas que estão sendo verificadas.
+ 
 // Venda: no fechamento abaixo de medias exp 21 e 72 + 
 //         MADC histograma 150,14,14 abaixo de 0 + 
-//         apos candle branco do 2MV_Padrao. 
- 
+//         apos candle branco do 2MV_Padrao.
+// TODO: descrever as demais condições ativas que estão sendo verificadas. 
+
+const
+  RespiroTicks = 0; //7 ticks WDO == 3.5pts == 1 candle no 8R
+
+  // TODO: verificar como aproveitar melhor os alvos de fibo
+  //       nao estao em uso no momento
+  AlvoFibo1 = 1.00;
+  AlvoFibo2 = 1.61;
+  AlvoFibo3 = 2.00;
+
 input
   TwoMVPeriod(20);
   FastPeriodMMs(21);
@@ -21,6 +35,7 @@ input
   SignalPeriodMACD(14);
 
 var
+  R : Float;
   sFastMMs   : Float;
   sMediumMMs : Float;
   s2MVHigh : Float;
@@ -56,19 +71,27 @@ var
 
 begin // BEGIN 01
 
+  // Caso se deseje entrar na operacao nao no rompimento do alvo 
+  // mas com uma ordem limite alguns ticks acima ou abaixo, 
+  // configurar o RespiroTicks. Nesse momento está zerado.
+  R := RespiroTicks * MinPriceIncrement;
+
   // Setup do valor de trailing stop desejado.
   // Nesse momento isso não tem muita funcionalidade
   // pois as saidas estao ocorrendo pela ocorrencia de
   // um candle invertido/contrario. É uma melhoria a se 
   // fazer realizar um trailing stop decente.
-  stopInit := 13.5; // Stops em 3 candles: 15R=21; 8R=9.5; 7R=9 
+  stopInit := Range*3; // Stops em 3 candles: 15R=21; 8R=9.5; 7R=9 
   stopVarianceInit := 0;
-  stopTrailing := 13.5; // Stops em 3 candles: 15R=21; 8R=9.5; 7R=9
+  stopTrailing := Range*3; // Stops em 3 candles: 15R=21; 8R=9.5; 7R=9
   macdmargin := 0;
+
   // Valor do MACD histograma maximo aceito para entrada
   // TODO: analisar, pois nesse momento nao esta com um valor de corte
-  //       que faca diferenca
-  macdMax := 20;  
+  //       que faca diferenca, esta deixando passar tudo
+  macdMax := 10000; // 10000 para WIN 35R; 20 pra WDO 8R passa tudo.
+                    // TODO: analisar de 2000 a 4000 para o WIN 45R
+                    // TODO: analisar de 10 para cima no WDO 8R
 
   // Variaveis de controle para sinalizar entrada na compra, venda
   // ou se o 2MV_Padrao está neutro, sem sinalizacao positiva ou negativa 
@@ -93,7 +116,8 @@ begin // BEGIN 01
   // TODO 2: usar isso em conjunto com a verificacao do MACD histograma ter
   //         valores menores que 1 (ou algo nesse patamar) em um intervalor
   //         dos ultimos 3 candles. 
-  sMediumMMConstant := 0.0000001; // Valor de 0.000026 para cima impediu operacoes de exemplo stopadas entre 11 e 12h de 13/abr/2021. 
+  sMediumMMConstant := 0.0000001; // Valor de 0.000026 para cima impediu operacoes 
+                                  // de exemplo stopadas entre 11 e 12h de 13/abr/2021. 
   sMediumMMsMax := sMediumMMs*(1+sMediumMMConstant);        
   sMediumMMsMin := sMediumMMs*(1-sMediumMMConstant);
 
@@ -116,15 +140,11 @@ begin // BEGIN 01
   // geravam menos retorno.
   horarioInicial := 1030;
   horarioFinal := 1650;
+
   // Verificacao para fechar trades ao final do dia.  
-  if (TIME <= horarioInicial) or 
-     (TIME >= horarioFinal) then
+  if (TIME <= horarioInicial) or (TIME >= horarioFinal) then
     begin
-      CancelPendingOrders;
-      if (BuyPosition >= 1) then
-        SellToCoverAtMarket;
-      if (SellPosition >= 1) then
-        BuyToCoverAtMarket;
+      ClosePosition;
     end
 
   else 
@@ -139,7 +159,8 @@ begin // BEGIN 01
           if (Close[1] > Open[1]) then
             begin
               CancelPendingOrders;
-              SellShortStop(Open-stopTrailing, Open-stopTrailing);
+              SellToCoverStop(Open-stopTrailing, Open-stopTrailing);
+              //SellShortStop(Open-stopTrailing, Open-stopTrailing);
               //SellShortStop(Close-stopTrailing, Close-stopTrailing);
               PaintBar(clGreen);
             end;
@@ -212,7 +233,8 @@ begin // BEGIN 01
                     (Close > Open) then //and 
                     //not((macdDiff < 1) and (macdDiff[1] < 1) and (macdDiff[2] < 1))then
                    begin
-                     BuyAtMarket;
+                     BuyStop(Close+R, Close+R);
+                     //BuyAtMarket;
                      SellShortStop(Close-stopInit+stopVarianceInit, Close-stopInit);                     
                      PaintBar(clLime);
                    end;                 
@@ -234,7 +256,8 @@ begin // BEGIN 01
                     (Close < Open) then // and
                      //not((macdDiff < 1) and (macdDiff[1] < 1) and (macdDiff[2] < 1))then
                    begin
-                     SellShortAtMarket;
+                     SellShortStop(Close-R, Close-R);
+                     //SellShortAtMarket;
                      BuyStop(Close+stopInit-stopVarianceInit, Close+stopInit);                  
                      PaintBar(clRed);
                    end;
