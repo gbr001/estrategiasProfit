@@ -1,0 +1,105 @@
+// Autor: Gustavo B. Brand (TODO: email)
+
+// Estrutura do código foi baseada no código GBT disponibilizada 
+// gratuitamente pelo pessoal do schillerapp.com (canal scApp no youtube) 
+// e então alterado para diferentes formas de stop e regras de entrada/saida.
+
+// A sugestão de implementacao e sinais vieram de Ary, usuario
+// do grupo do telegram do canal Viver de Trade.  
+
+// Setup usando Donchian Channel no periodo de 20, com sinal de compra 
+// no fechamento fora da banda superior com candle seguinte de reversão 
+// abaixo da banda superior. Sinal de venda ao contrario, trabalhando
+// na banda inferior.
+
+// TODO: alterar gain e stop e estudar backtests
+
+Const
+  // Configuraçao
+  RespiroTicks        = 0;
+  AlvoFibo            = 1.618;
+  DayTrade            = Verdadeiro;
+  HoraEntradaInicio   = 1000;
+  HoraEntradaFim      = 1640;
+  HoraFechamento      = 1640; {Horário da Penúltima Barra}
+
+var
+  SinalC, SinalV : Booleano;
+  R, vIFR : Real;
+  EntradaC, StopC, AlvoC : Real;
+  EntradaV, StopV, AlvoV : Real;
+  linhaSuperior, linhaInferior : Real;
+  mm9 : Real;
+
+Inicio
+
+  //Cálculos
+  R := RespiroTicks * MinPriceIncrement;
+  //vIFR := RSI(9, 0);
+  mm9 := MediaExp(9, Close);
+  linhaSuperior := DonchianCh(20)|1|;
+  linhaInferior := DonchianCh(20)|2|;
+  plot(linhaSuperior);
+  plot2(linhaInferior);
+  plot3(mm9);
+
+  //Setup
+  SinalV := (Close[1] > Open[1]) and (Close < Open) and
+            (Close[1] >= linhaSuperior) and (Close <= linhaSuperior);
+
+  SinalC := (Close[1] < Open[1]) and (Close > Open) and
+            (Close[1] <= linhaInferior) and (Close >= linhaInferior) ;
+
+  {Coloraçao}
+  Se SinalC entao PaintBar(clVerde);
+  Se SinalV entao PaintBar(clVermelho);
+
+  {Busca Entrada}
+  Se (BuyPosition = 0) e (SellPosition = 0) e 
+  ( (Daytrade e (Time >= HoraEntradaInicio) e (Time < HoraEntradaFim)) ou
+  ( DayTrade = Falso ) ) entao
+  inicio
+    {Compra}
+    Se SinalC entao
+      inicio
+        EntradaC := Maxima + R;
+        StopC := Minima - R;
+        AlvoC := Maxima + (Range * AlvoFibo);
+        BuyStop(EntradaC,EntradaC);
+        SellToCoverLimit(AlvoC);
+        SellToCoverStop(StopC,StopC);
+        Paintbar(clLime);        
+      fim;
+
+    {Venda}
+    Se SinalV entao
+       inicio
+        EntradaV := Minima - R;
+        StopV := Maxima;
+        AlvoV := Minima - (Range * AlvoFibo);
+        SellShortStop(EntradaV, EntradaV);
+        BuyToCoverLimit(AlvoV);
+        BuyToCoverStop(StopV,StopV);
+        PaintBar(clRed);
+      fim;
+  fim;
+
+  {Se estiver comprado - buscar saída}
+  Se (BuyPosition > 0) entao
+    inicio
+      SellToCoverLimit(AlvoC);
+      SellToCoverStop(StopC,StopC);
+      Se (Minima <= StopC) entao SellToCoverAtMarket;      
+    fim;
+
+  {Se estiver vendido - buscar saída}
+  Se (SellPosition > 0) entao
+    inicio
+      BuyToCoverLimit(AlvoV);
+      BuyToCoverStop(StopV,StopV);
+      Se (Maxima >= StopV) entao BuyToCoverAtMarket;      
+    fim;
+
+  {Fechar Posiçoes no Final do Dia}
+  Se (DayTrade) e (Time >= HoraFechamento) entao ClosePosition;
+Fim;
