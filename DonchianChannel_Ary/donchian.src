@@ -12,12 +12,17 @@
 // abaixo da banda superior. Sinal de venda ao contrario, trabalhando
 // na banda inferior.
 
-// TODO: alterar gain e stop e estudar backtests
-
+// TODO: continuar alterando gain e stop e estudar backtests de maior tempo
+//       com gain de 200 pts (AlvoFibo 2.0) e stop em 250pts (AlvoFiboStop 2.5)
+//       o resultado de 1/abr/21 a 20/abr/21 teve pareceu positivo no WINM21,
+//       mas ao se passar isso para o WINFUT em um periodo maior nao houve tanta
+//       acertividade e um grafico de curva de capital nao crescente.
+  
 Const
   // Configuraçao
   RespiroTicks        = 0;
-  AlvoFibo            = 1.618;
+  AlvoFibo            = 2.0; //1.618;
+  AlvoFiboStop        = 2.5; //1.618;
   DayTrade            = Verdadeiro;
   HoraEntradaInicio   = 1000;
   HoraEntradaFim      = 1640;
@@ -29,7 +34,9 @@ var
   EntradaC, StopC, AlvoC : Real;
   EntradaV, StopV, AlvoV : Real;
   linhaSuperior, linhaInferior : Real;
-  mm9 : Real;
+  mm9, mm21, mm72 : Real;
+  tamanhoCandle : Real;
+
 
 Inicio
 
@@ -37,22 +44,80 @@ Inicio
   R := RespiroTicks * MinPriceIncrement;
   //vIFR := RSI(9, 0);
   mm9 := MediaExp(9, Close);
-  linhaSuperior := DonchianCh(20)|1|;
+  mm21 := MediaExp(21, Close);
+  mm72 := MediaExp(72, Close);
+    linhaSuperior := DonchianCh(20)|1|;
   linhaInferior := DonchianCh(20)|2|;
   plot(linhaSuperior);
   plot2(linhaInferior);
   plot3(mm9);
+  tamanhoCandle := Abs(Close - Open);
 
   //Setup
   SinalV := (Close[1] > Open[1]) and (Close < Open) and
-            (Close[1] >= linhaSuperior) and (Close <= linhaSuperior);
+            (Close[1] >= linhaSuperior) and (Close <= linhaSuperior) and
+            //(mm9 > mm9[1]);
+            //(mm21 > mm21[1]);
+            //(mm72 > mm72[1]);
+            true;
 
   SinalC := (Close[1] < Open[1]) and (Close > Open) and
-            (Close[1] <= linhaInferior) and (Close >= linhaInferior) ;
+            (Close[1] <= linhaInferior) and (Close >= linhaInferior) and
+            //(mm9 < mm9[1]);
+            //(mm21 < mm21[1]);
+            //(mm72 < mm72[1]);
+            true;
 
   {Coloraçao}
-  Se SinalC entao PaintBar(clVerde);
-  Se SinalV entao PaintBar(clVermelho);
+//  Se SinalC entao PaintBar(clLime);
+//  Se SinalV entao PaintBar(clRed);
+
+//  Forma alternativa a mercado de stopar no gain e no loss, mas pelo 
+//  que vi o formato original abaixo está funcionando bem.
+
+  // Trailing Stop 
+  Se (BuyPosition > 0) and 
+     (Close[1] > Open[1]) and
+     (Close < Open) then
+    begin
+      ClosePosition;
+      PaintBar(clYellow);
+    end;
+  // Trailing Stop 
+  Se (SellPosition > 0) and 
+     (Close[1] < Open[1]) and
+     (Close > Open) then
+    begin
+      ClosePosition;
+      PaintBar(clYellow);
+    end;
+  // Stop loss
+  Se (BuyPosition > 0) and 
+     (Close < BuyPrice - tamanhoCandle*1) then
+    begin
+      ClosePosition;
+      PaintBar(clYellow);
+    end;
+  // Stop loss
+  Se (SellPosition > 0) and 
+     (Close > SellPrice + tamanhoCandle*1) then
+    begin
+      ClosePosition;
+      PaintBar(clYellow);
+    end;
+  // Stop gain
+//  Se (BuyPosition > 0) and (Close > BuyPrice + tamanhoCandle*2) then
+//    begin
+//      ClosePosition;
+//      PaintBar(clFuchsia);
+//    end;
+//  // Stop gain
+//  Se (SellPosition > 0) and (Close < SellPrice - tamanhoCandle*2) then
+//    begin
+//      ClosePosition;
+//      PaintBar(clFuchsia);
+//    end;
+
 
   {Busca Entrada}
   Se (BuyPosition = 0) e (SellPosition = 0) e 
@@ -63,10 +128,11 @@ Inicio
     Se SinalC entao
       inicio
         EntradaC := Maxima + R;
-        StopC := Minima - R;
-        AlvoC := Maxima + (Range * AlvoFibo);
+        //StopC := Minima - R;
+        StopC := Close - tamanhoCandle*AlvoFiboStop;
+        //AlvoC := Maxima + (tamanhoCandle * AlvoFibo );
         BuyStop(EntradaC,EntradaC);
-        SellToCoverLimit(AlvoC);
+        //SellToCoverLimit(AlvoC);
         SellToCoverStop(StopC,StopC);
         Paintbar(clLime);        
       fim;
@@ -75,10 +141,11 @@ Inicio
     Se SinalV entao
        inicio
         EntradaV := Minima - R;
-        StopV := Maxima;
-        AlvoV := Minima - (Range * AlvoFibo);
+        //StopV := Maxima;
+        StopV := Close + tamanhoCandle*AlvoFiboStop;
+        //AlvoV := Minima - (tamanhoCandle * AlvoFibo);
         SellShortStop(EntradaV, EntradaV);
-        BuyToCoverLimit(AlvoV);
+        //BuyToCoverLimit(AlvoV);
         BuyToCoverStop(StopV,StopV);
         PaintBar(clRed);
       fim;
@@ -87,19 +154,31 @@ Inicio
   {Se estiver comprado - buscar saída}
   Se (BuyPosition > 0) entao
     inicio
-      SellToCoverLimit(AlvoC);
+      //SellToCoverLimit(AlvoC);
       SellToCoverStop(StopC,StopC);
-      Se (Minima <= StopC) entao SellToCoverAtMarket;      
+      Se (Minima <= StopC) entao 
+        begin
+          SellToCoverAtMarket;
+          PaintBar(clYellow);
+        end
+      else
+        PaintBar(clGreen);      
     fim;
 
   {Se estiver vendido - buscar saída}
   Se (SellPosition > 0) entao
     inicio
-      BuyToCoverLimit(AlvoV);
+      //BuyToCoverLimit(AlvoV);
       BuyToCoverStop(StopV,StopV);
-      Se (Maxima >= StopV) entao BuyToCoverAtMarket;      
+      Se (Maxima >= StopV) entao 
+        begin 
+          BuyToCoverAtMarket;
+          PaintBar(clFuchsia);
+        end;
+      PaintBar(clMaroon);      
     fim;
 
   {Fechar Posiçoes no Final do Dia}
-  Se (DayTrade) e (Time >= HoraFechamento) entao ClosePosition;
+  Se (DayTrade) e (Time >= HoraFechamento) entao 
+    ClosePosition;
 Fim;
