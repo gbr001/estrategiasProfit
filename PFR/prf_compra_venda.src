@@ -1,3 +1,25 @@
+// Autor: Gustavo B. Brand
+
+// Estrategia originalmente vista no canal Viver de Trade do Youtube com Henrique Teixeira 
+// mas focada em Renko de 18R ou 15R e sem muito controle de stop.
+
+// Apos adaptacoes realizadas abaixo em BackTests de 01/06/20 a 31/03/21 foi verificado:
+// -> Teve bom retorno no WINFUT 35R(principalmente de dez/20 a mar/21).
+// -> No WDOFUT 18R e 15R (01/06/20 a 31/03/21) não apresentou boa rentabilidade, ficando negativo. 
+// -> No WDOFUT 8R (08/01/21 a 09/04/21) apresentou rentabilidade positiva, stop de 7pts.
+// -> No WDOFUT 7R (29/01/21 a 09/04/21) apresentou curva de capital hora positiva, hora negativa, stop de 6pts.
+
+// Em dias como 26 e 27/abr/2021 com uma congestao constante tiveram um otimo desempenho.
+// TODO: estudar a melhor forma de avaliar o uso dessa estrategia de forma automatizada
+//       em momenos de congestao lateral, sem grandes movimentos.
+
+//       USAR COM TRAILING STOP DE 7PTOS NO WDO 8R, POIS A COLORACAO DE VERMELHO
+//       E VERDE ESTA SINALIZANDO SOMENTE A ENTRADA PARA O VISUALBOT
+
+const
+  timeBegin = 1000;
+  timeEnd = 1700; 
+  
 input
   StochasticPeriod(8);
   FastPeriodMMs(9);
@@ -7,53 +29,78 @@ var
   sFastMMs   : Float;
   sMediumMMs : Float;
   sSlotStochastic : Float;
-  pfrSignalCompra : Boolean;
-  pfrSignalVenda : Boolean;
   stop : Float;
+  candleNaoMarcado : Boolean;
+
+// Essas funcoes fizeram o Profit crashear/encerrar
+// TODO: entender o por que.
+//function PFRVenda(stoc : Real): Boolean;
+//begin
+//      if (Close < Close[1]) and 
+//         (Highest(High,2) >Highest(High,2)[1]) and 
+//         (stoc > 80) then
+//         Result := true
+//      else
+//         Result := false;
+//end;
+
+//function PFRCompra(stoc : Real): Boolean;
+//begin
+//      if (Close > Close[1]) and 
+//         (lowest(Low,2) < lowest(Low,2)[1]) and 
+//         (stoc < 20)  then
+//         Result := true
+//      else
+//         Result := false;
+//end;
 
 begin
 
+  sFastMMs := MediaExp(FastPeriodMMs, Close);
+  sMediumMMs := Media(MediumPeriodMMs, Close);
+  sSlotStochastic := SlowStochastic(StochasticPeriod); 
+  plot(sFastMMs);
+  plot2(sMediumMMs);
+
   // Verificacao para fechar trades ao final do dia.  
-  if (TIME >= 1745) or (TIME <= 0902) then
+  if (TIME <= timeBegin) or (TIME >= timeEnd) then
     begin
       CancelPendingOrders;
-      if (BuyPosition >= 1) then
-        SellToCoverAtMarket;
-      if (SellPosition >= 1) then
-        BuyToCoverAtMarket;
+      ClosePosition;
+      PaintBar(clSilver);
     end
 
   else 
     begin
-      sFastMMs := MediaExp(FastPeriodMMs, Close);
-      sMediumMMs := Media(MediumPeriodMMs, Close);
-      sSlotStochastic := SlowStochastic(StochasticPeriod); 
-      plot(sFastMMs);
-      plot2(sMediumMMs);
-      
-      // Sinal do setup PFR para Venda
-      pfrSignalVenda := (Close < Close[1]) and 
-                   (Highest(High,2) >Highest(High,2)[1]) and 
-                   (sSlotStochastic > 80);
-
-      // Sinal do setup PFR para Compra 
-      pfrSignalCompra := (Close > Close[1]) and 
-                   (lowest(Low,2) < lowest(Low,2)[1]) and 
-                   (sSlotStochastic < 20);
-
       // Stop em pontos. Funcionou bem ate o limite de 2 candles
       // Acima disso o comportamento ficou errado no backtest. 
       // TODO: investigar como setar stops maiores. 
-      stop := 17; // 17: 2 candles no WDO 18R
+      stop := 7;  // Testes em 17/04/21: 7R com stop 9 R$4109
+                  // Testes em 17/04/21: 15R com stop 17 R$19xx
+
+                  // 17: 2 candles no WDO 18R e 15R
                   //  7: 2 candles no WDO 8R
                   //  6: 2 candles no WDO 7R
+                  //500: no WIN 35R
+      if (SellPosition >= 1) and
+         (Close > SellPrice+stop) then
+        begin
+          ClosePosition;
+        end;
+      if (BuyPosition >= 1) and
+         (Close < BuyPrice-stop) then
+        begin
+          ClosePosition;
+        end;
 
-//      // Stop na venda caso o estocastico fique abaixo de 20
+      candleNaoMarcado := true;
+      // Stop na venda caso o estocastico fique abaixo de 20
 //      if (sSlotStochastic < 20) and
 //         (SellPosition >= 1) then
 //        begin               
 //           BuyToCoverAtMarket;
 //           PaintBar(clYellow);
+//           candleNaoMarcado := false;
 //        end
 //      // Stop na compra caso o estocastico fique acima de 80
 //      else if (sSlotStochastic > 80) and
@@ -61,41 +108,72 @@ begin
 //        begin               
 //           SellToCoverAtMarket;
 //           PaintBar(clYellow);
-//        end
+//           candleNaoMarcado := false;
+//        end;
+
       // Trailing stop na venda 
-      if (SellPosition >= 1) and 
-              (Close < Close[1])then
+      if (SellPosition >= 1) then
         begin
            CancelPendingOrders;
            BuyToCoverStop(Close+stop, Close+stop);
-           PaintBar(clMaroon); 
+           PaintBar(clMaroon);
+           candleNaoMarcado := false; 
         end
       // Trailing stop na compra
-      else if (BuyPosition >= 1) and 
-              (Close > Close[1])then
+      else if (BuyPosition >= 1) then
         begin
            CancelPendingOrders;
            SellToCoverStop(Close-stop, Close-stop);
-           PaintBar(clGreen); 
-        end
+           PaintBar(clGreen);
+           candleNaoMarcado := false; 
+        end;
+
       // Analise para entrada na venda  
-      else if (pfrSignalVenda) and
-              (SellPosition=0)  and
-              (sMediumMMs < sMediumMMs[1]) then
-              //(sFastMMs < sFastMMs[1]) then
+      //if (PFRVenda(sSlotStochastic)) and
+      if (Close < Close[1]) and 
+         (Highest(High,2) >Highest(High,2)[1]) and 
+         (sSlotStochastic > 80) and
+         (SellPosition=0)  then //and
+         //(sMediumMMs < sMediumMMs[1]) then
+         //(sFastMMs < sFastMMs[1]) then
         begin               
            SellShortAtMarket;
            BuyToCoverStop(Close+stop, Close+stop);
            PaintBar(clRed);
+           candleNaoMarcado := false;
         end
       // Analise para entrada na compra 
-      else if (pfrSignalCompra) and
+      //else if (PFRCompra(sSlotStochastic)) and
+      else if (Close > Close[1]) and 
+              (lowest(Low,2) < lowest(Low,2)[1]) and 
+              (sSlotStochastic < 20) and
               (BuyPosition=0) then 
               //(sFastMMs > sFastMMs[1]) then
         begin               
            BuyAtMarket;
            SellToCoverStop(Close-stop, Close-stop);
            PaintBar(clLime);
+           candleNaoMarcado := false;
+        end;
+        
+      if (candleNaoMarcado) then
+        begin
+           //PaintBar(clFuchsia);
+           if (BuyPosition >= 1) and
+              ((Close - BuyPrice) < 0) and
+              (ABS(Close - BuyPrice) > stop) then
+              begin
+                 ClosePosition;
+                 PaintBar(clPurple);
+              end;
+
+           if (SellPosition >= 1) and
+              ((Close - SellPrice) > 0) and
+              (ABS(Close - BuyPrice) > stop) then
+              begin
+                 ClosePosition;
+                 PaintBar(clPurple);
+              end; 
         end; 
     end;
 end;
