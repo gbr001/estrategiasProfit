@@ -138,7 +138,7 @@ begin // BEGIN 01
   // Horarios limite de negociacao da estrategia
   // Em backtests foi verificado em operações durante a 1a hora
   // geravam menos retorno.
-  horarioInicial := 1030;
+  horarioInicial := 1000;
   horarioFinal := 1650;
 
   // Verificacao para fechar trades ao final do dia.  
@@ -215,7 +215,7 @@ begin // BEGIN 01
                (Close < s2MVLow)  and  //Caso negativo do 2MV_Padrao    
                (Abs(macdTrend) < macdMax ) and
                ((macdTrend[2] > macdTrend[1]) and (macdTrend[1] > macdTrend));
-            
+               
             // Se verifica: 
             // 1. Se o setup de compra esta valido;
             // 2. Se temos um candle neutro do 2MV_Padrao dentre os ultimos 6
@@ -227,6 +227,7 @@ begin // BEGIN 01
                 neutralCandle[5] or neutralCandle[6]) and 
                 (not((sMediumMMs[1] <= sMediumMMsMax) and (sMediumMMs[1] >= sMediumMMsMin)) and
                  not((sMediumMMs[2] <= sMediumMMsMax) and (sMediumMMs[2] >= sMediumMMsMin))) and
+                not((abs(macdTrend[0])<1) and (abs(macdTrend[1])<1) and (abs(macdTrend[2])<1)) and 
                 (Close > Close[1])) then
                begin
                  if (BuyPosition = 0) and 
@@ -249,7 +250,8 @@ begin // BEGIN 01
                      neutralCandle[3] or neutralCandle[4] or
                      neutralCandle[5] or neutralCandle[6]) and
                      (not((sMediumMMs[1] <= sMediumMMsMax) and (sMediumMMs[1] >= sMediumMMsMin)) and
-                      not((sMediumMMs[2] <= sMediumMMsMax) and (sMediumMMs[2] >= sMediumMMsMin))) and 
+                      not((sMediumMMs[2] <= sMediumMMsMax) and (sMediumMMs[2] >= sMediumMMsMin))) and
+                     not((abs(macdTrend[0])<1) and (abs(macdTrend[1])<1) and (abs(macdTrend[2])<1)) and  
                     (Close < Close[1]) then
                begin                
                  if (SellPosition = 0) and
@@ -266,9 +268,11 @@ begin // BEGIN 01
             // que não é de compra nem de venda. Preventivamente esta se fechando
             // as posicoes, mas talvez nao seja necessario uma vez que ja deve-se 
             // estar sem posicao ao chegar aqui.
+//            else if not(Close > s2MVHigh) and not(Close < s2MVLow) then
+//                 PaintBar(clGray)
             else
                begin
-                 //PaintBar(clWhite);
+                 //PaintBar(clGray);
                  CancelPendingOrders;
                  if (BuyPosition >= 1) then
                    SellToCoverAtMarket;
