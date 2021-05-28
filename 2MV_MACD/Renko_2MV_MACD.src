@@ -28,15 +28,16 @@ const
   // Horarios limite de negociacao da estrategia
   // Em backtests foi verificado em operações durante a 1a hora
   // geravam menos retorno.
-  horarioInicial := 1030;
-  horarioFinal := 1650;
+  horarioInicial = 1030;
+  horarioFinal = 1650;
   
   // Valor do MACD histograma maximo aceito para entrada
   // TODO: analisar, pois nesse momento nao esta com um valor de corte
   //       que faca diferenca, esta deixando passar tudo
-  macdMax := 10000; // 10000 para WIN 35R; 20 pra WDO 8R passa tudo.
+  macdMax = 10000; // 10000 para WIN 35R; 20 pra WDO 8R passa tudo.
                     // TODO: analisar de 2000 a 4000 para o WIN 45R
                     // TODO: analisar de 10 para cima no WDO 8R
+                    
 input
   TwoMVPeriod(20);
   FastPeriodMMs(21);
@@ -138,7 +139,14 @@ begin // BEGIN 01
   neutralCandle := ((Close <= s2MVHigh) and (Close >= s2MVLow));
 
   // Verificacao para fechar trades ao final do dia.  
-  if (TIME <= horarioInicial) or (TIME >= horarioFinal) then
+  if (TIME <= horarioInicial) or 
+     (TIME >= horarioFinal) or 
+     (DayOfWeek(Date) = Friday) or
+     (DayOfWeek(Date) = Thursday) or
+     //(DayOfWeek(Date) = Wednesday) or
+     //(DayOfWeek(Date) = Tuesday) or
+     //(DayOfWeek(Date) = Monday) or
+         false then
     begin
       ClosePosition;
     end
