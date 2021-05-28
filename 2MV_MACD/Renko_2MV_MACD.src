@@ -24,7 +24,19 @@ const
   AlvoFibo1 = 1.00;
   AlvoFibo2 = 1.61;
   AlvoFibo3 = 2.00;
-
+  
+  // Horarios limite de negociacao da estrategia
+  // Em backtests foi verificado em operações durante a 1a hora
+  // geravam menos retorno.
+  horarioInicial := 1030;
+  horarioFinal := 1650;
+  
+  // Valor do MACD histograma maximo aceito para entrada
+  // TODO: analisar, pois nesse momento nao esta com um valor de corte
+  //       que faca diferenca, esta deixando passar tudo
+  macdMax := 10000; // 10000 para WIN 35R; 20 pra WDO 8R passa tudo.
+                    // TODO: analisar de 2000 a 4000 para o WIN 45R
+                    // TODO: analisar de 10 para cima no WDO 8R
 input
   TwoMVPeriod(20);
   FastPeriodMMs(21);
@@ -51,7 +63,6 @@ var
   macdval2 : Float;
   macdDiff : Float;
   macdTrend : Float;
-  macdMax : Float;
   macdmargin : Float; //Margem de aceite da operacao quando 
                       //em torno de 0. Valor de +- 1 para WDO 15R.
 
@@ -66,8 +77,6 @@ var
   macdNegativeTrend : Boolean;
 
   i : Integer;
-  horarioInicial : Integer;
-  horarioFinal : Integer;
 
 begin // BEGIN 01
 
@@ -85,13 +94,6 @@ begin // BEGIN 01
   stopVarianceInit := 0;
   stopTrailing := Range*3; // Stops em 3 candles: 15R=21; 8R=9.5; 7R=9
   macdmargin := 0;
-
-  // Valor do MACD histograma maximo aceito para entrada
-  // TODO: analisar, pois nesse momento nao esta com um valor de corte
-  //       que faca diferenca, esta deixando passar tudo
-  macdMax := 10000; // 10000 para WIN 35R; 20 pra WDO 8R passa tudo.
-                    // TODO: analisar de 2000 a 4000 para o WIN 45R
-                    // TODO: analisar de 10 para cima no WDO 8R
 
   // Variaveis de controle para sinalizar entrada na compra, venda
   // ou se o 2MV_Padrao está neutro, sem sinalizacao positiva ou negativa 
@@ -134,12 +136,6 @@ begin // BEGIN 01
   s2MVHigh := Media(TwoMVPeriod, High); // de forma simples: Media(20, High) 
   s2MVLow := Media(TwoMVPeriod, Low);   // de forma simples: Media(20, Low)
   neutralCandle := ((Close <= s2MVHigh) and (Close >= s2MVLow));
-
-  // Horarios limite de negociacao da estrategia
-  // Em backtests foi verificado em operações durante a 1a hora
-  // geravam menos retorno.
-  horarioInicial := 1000;
-  horarioFinal := 1650;
 
   // Verificacao para fechar trades ao final do dia.  
   if (TIME <= horarioInicial) or (TIME >= horarioFinal) then
