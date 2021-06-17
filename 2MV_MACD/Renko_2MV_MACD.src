@@ -28,9 +28,11 @@ const
   // Horarios limite de negociacao da estrategia
   // Em backtests foi verificado em operações durante a 1a hora
   // geravam menos retorno.
-  horarioInicial = 1030;
+  horarioInicial = 1100;
   horarioFinal = 1650;
-  
+  horarioInicialManha = 1000;
+  horarioFinalManha = 1300;
+
   // Valor do MACD histograma maximo aceito para entrada
   // TODO: analisar, pois nesse momento nao esta com um valor de corte
   //       que faca diferenca, esta deixando passar tudo
@@ -78,6 +80,7 @@ var
   macdNegativeTrend : Boolean;
 
   i : Integer;
+  executeTrades : Boolean;
 
 begin // BEGIN 01
 
@@ -139,19 +142,44 @@ begin // BEGIN 01
   neutralCandle := ((Close <= s2MVHigh) and (Close >= s2MVLow));
 
   // Verificacao para fechar trades ao final do dia.  
-  if (TIME <= horarioInicial) or 
-     (TIME >= horarioFinal) or 
-     (DayOfWeek(Date) = Friday) or
-     (DayOfWeek(Date) = Thursday) or
-     //(DayOfWeek(Date) = Wednesday) or
-     //(DayOfWeek(Date) = Tuesday) or
-     //(DayOfWeek(Date) = Monday) or
+  executeTrades := true;
+
+  if (DayOfWeek(Date) = Monday) or
+     (DayOfWeek(Date) = Tuesday) or
+     (DayOfWeek(Date) = Wednesday) or
          false then
     begin
-      ClosePosition;
+     if (TIME <= horarioInicial) or 
+        (TIME >= horarioFinal) then
+//     if (TIME <= horarioInicialManha) or 
+//        (TIME >= horarioFinalManha) then
+     begin
+        executeTrades := false;
+        ClosePosition;
+     end;
     end
 
-  else 
+  else if ((DayOfWeek(Date) = Thursday)) then
+      begin
+//        if (TIME <= horarioInicialManha) or 
+//           (TIME >= horarioFinalManha) then
+           begin
+              executeTrades := false;
+              ClosePosition;
+           end;      
+      end
+      
+  else if (DayOfWeek(Date) = Friday) then
+     begin
+//        if (TIME <= horarioInicialManha) or 
+//           (TIME >= horarioFinalManha) then
+           begin
+              executeTrades := false;
+              ClosePosition;
+           end;
+     end;
+
+  if (executeTrades) then
     begin  // BEGIN 02
       
       // Em caso de posicao comprada, subir o stop ou stopar o trade
