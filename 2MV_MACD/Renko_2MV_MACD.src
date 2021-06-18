@@ -2,7 +2,7 @@
 // Fonte: Diferentes canais no youtube e ultimamente
 //        o Canal Viver de Trade no youtube com o Henrique
 //        tem trabalhado com um este tipo de setup 
-//        em periodicidades maiores (15R pro WDO). 
+//        em periodicidades maiores (15R pro WDO)
 
 // Alvo principal: WDO com renko 8R no intraday
 // Adaptado e testado com lucro no WIN 35R. 
@@ -44,8 +44,8 @@ const
                     // TODO: analisar de 10 para cima no WDO 8R
 
   macdMin = 1; // Esse valor é levado em conta no MACD histograma
-               // para que pelo menus 1 barra dentre as 3 ultimas
-               // seria maior ou igual a ele. No caso do WDO 8R, 1
+               // para que pelo menos 1 barra dentre as 3 ultimas
+               // sera maior ou igual a macdMin. No caso do WDO 8R, 1
                // parece um valor minimo aceitavel, mas isso deve
                // ser alterado para outros ativos ou periodos.
                // TODO: pensar uma forma de calcular isso automaticamente
@@ -157,6 +157,8 @@ begin // BEGIN 01
   if (DayOfWeek(Date) = Monday) or
      (DayOfWeek(Date) = Tuesday) or
      (DayOfWeek(Date) = Wednesday) or
+//     (DayOfWeek(Date) = Thursday) or
+//     (DayOfWeek(Date) = Friday) or
          false then
     begin
      if (TIME <= horarioInicial) or 
