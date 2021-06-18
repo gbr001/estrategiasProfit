@@ -1,5 +1,8 @@
 // Autor: Gustavo Brand (TODO colocar email)
-// Fonte: Canal Viver de Trade no youtube
+// Fonte: Diferentes canais no youtube e ultimamente
+//        o Canal Viver de Trade no youtube com o Henrique
+//        tem trabalhado com um este tipo de setup 
+//        em periodicidades maiores (15R pro WDO). 
 
 // Alvo principal: WDO com renko 8R no intraday
 // Adaptado e testado com lucro no WIN 35R. 
@@ -39,6 +42,13 @@ const
   macdMax = 10000; // 10000 para WIN 35R; 20 pra WDO 8R passa tudo.
                     // TODO: analisar de 2000 a 4000 para o WIN 45R
                     // TODO: analisar de 10 para cima no WDO 8R
+
+  macdMin = 1; // Esse valor é levado em conta no MACD histograma
+               // para que pelo menus 1 barra dentre as 3 ultimas
+               // seria maior ou igual a ele. No caso do WDO 8R, 1
+               // parece um valor minimo aceitavel, mas isso deve
+               // ser alterado para outros ativos ou periodos.
+               // TODO: pensar uma forma de calcular isso automaticamente
                     
 input
   TwoMVPeriod(20);
@@ -94,9 +104,9 @@ begin // BEGIN 01
   // pois as saidas estao ocorrendo pela ocorrencia de
   // um candle invertido/contrario. É uma melhoria a se 
   // fazer realizar um trailing stop decente.
-  stopInit := Range*3; // Stops em 3 candles: 15R=21; 8R=9.5; 7R=9 
+  stopInit := Abs(Close-Open)*3; // Stops em 3 candles: 15R=21; 8R=9.5; 7R=9 
   stopVarianceInit := 0;
-  stopTrailing := Range*3; // Stops em 3 candles: 15R=21; 8R=9.5; 7R=9
+  stopTrailing := Abs(Close-Open)*3; // Stops em 3 candles: 15R=21; 8R=9.5; 7R=9
   macdmargin := 0;
 
   // Variaveis de controle para sinalizar entrada na compra, venda
@@ -259,7 +269,7 @@ begin // BEGIN 01
                 neutralCandle[5] or neutralCandle[6]) and 
                 (not((sMediumMMs[1] <= sMediumMMsMax) and (sMediumMMs[1] >= sMediumMMsMin)) and
                  not((sMediumMMs[2] <= sMediumMMsMax) and (sMediumMMs[2] >= sMediumMMsMin))) and
-                not((abs(macdTrend[0])<1) and (abs(macdTrend[1])<1) and (abs(macdTrend[2])<1)) and 
+                not((abs(macdTrend[0])<macdMin) and (abs(macdTrend[1])<macdMin) and (abs(macdTrend[2])<macdMin)) and 
                 (Close > Close[1])) then
                begin
                  if (BuyPosition = 0) and 
@@ -283,7 +293,7 @@ begin // BEGIN 01
                      neutralCandle[5] or neutralCandle[6]) and
                      (not((sMediumMMs[1] <= sMediumMMsMax) and (sMediumMMs[1] >= sMediumMMsMin)) and
                       not((sMediumMMs[2] <= sMediumMMsMax) and (sMediumMMs[2] >= sMediumMMsMin))) and
-                     not((abs(macdTrend[0])<1) and (abs(macdTrend[1])<1) and (abs(macdTrend[2])<1)) and  
+                     not((abs(macdTrend[0])<macdMin) and (abs(macdTrend[1])<macdMin) and (abs(macdTrend[2])<macdMin)) and  
                     (Close < Close[1]) then
                begin                
                  if (SellPosition = 0) and
