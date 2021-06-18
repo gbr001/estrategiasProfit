@@ -27,29 +27,7 @@ const
   AlvoFibo1 = 1.00;
   AlvoFibo2 = 1.61;
   AlvoFibo3 = 2.00;
-  
-  // Horarios limite de negociacao da estrategia
-  // Em backtests foi verificado em operações durante a 1a hora
-  // geravam menos retorno.
-  horarioInicial = 1100;
-  horarioFinal = 1650;
-  horarioInicialManha = 1000;
-  horarioFinalManha = 1300;
-
-  // Valor do MACD histograma maximo aceito para entrada
-  // TODO: analisar, pois nesse momento nao esta com um valor de corte
-  //       que faca diferenca, esta deixando passar tudo
-  macdMax = 10000; // 10000 para WIN 35R; 20 pra WDO 8R passa tudo.
-                    // TODO: analisar de 2000 a 4000 para o WIN 45R
-                    // TODO: analisar de 10 para cima no WDO 8R
-
-  macdMin = 1; // Esse valor é levado em conta no MACD histograma
-               // para que pelo menos 1 barra dentre as 3 ultimas
-               // sera maior ou igual a macdMin. No caso do WDO 8R, 1
-               // parece um valor minimo aceitavel, mas isso deve
-               // ser alterado para outros ativos ou periodos.
-               // TODO: pensar uma forma de calcular isso automaticamente
-                    
+                      
 input
   TwoMVPeriod(20);
   FastPeriodMMs(21);
@@ -58,6 +36,28 @@ input
   LongPeriodMACD(150);
   FastPeriodMACD(14);
   SignalPeriodMACD(14);
+
+  // Horarios limite de negociacao da estrategia
+  // Em backtests foi verificado em operações durante a 1a hora
+  // geravam menos retorno.
+  horarioInicial(1100);
+  horarioFinal(1650);
+  horarioInicialManha(1000);
+  horarioFinalManha(1300);
+
+  // Valor do MACD histograma maximo aceito para entrada
+  // TODO: analisar, pois nesse momento nao esta com um valor de corte
+  //       que faca diferenca, esta deixando passar tudo
+  macdMax(10000); // 10000 para WIN 35R; 20 pra WDO 8R passa tudo.
+                    // TODO: analisar de 2000 a 4000 para o WIN 45R
+                    // TODO: analisar de 10 para cima no WDO 8R
+
+  macdMin(1); // Esse valor é levado em conta no MACD histograma
+               // para que pelo menos 1 barra dentre as 3 ultimas
+               // sera maior ou igual a macdMin. No caso do WDO 8R, 1
+               // parece um valor minimo aceitavel, mas isso deve
+               // ser alterado para outros ativos ou periodos.
+               // TODO: pensar uma forma de calcular isso automaticamente
 
 var
   R : Float;
