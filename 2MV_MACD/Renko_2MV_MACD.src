@@ -42,8 +42,14 @@ input
   // geravam menos retorno.
   horarioInicial(1100);
   horarioFinal(1650);
-  horarioInicialManha(1000);
-  horarioFinalManha(1300);
+
+  operarQuinta(false);
+  horarioInicialQuinta(1000);
+  horarioFinalQuinta(1300);
+
+  operarSexta(false);
+  horarioInicialSexta(1000);
+  horarioFinalSexta(1300);
 
   // Valor do MACD histograma maximo aceito para entrada
   // TODO: analisar, pois nesse momento nao esta com um valor de corte
@@ -151,40 +157,36 @@ begin // BEGIN 01
   s2MVLow := Media(TwoMVPeriod, Low);   // de forma simples: Media(20, Low)
   neutralCandle := ((Close <= s2MVHigh) and (Close >= s2MVLow));
 
-  // Verificacao para fechar trades ao final do dia.  
+  // Verificacao de dias e horarios em que vamos operar.    
   executeTrades := true;
 
   if (DayOfWeek(Date) = Monday) or
      (DayOfWeek(Date) = Tuesday) or
      (DayOfWeek(Date) = Wednesday) or
-//     (DayOfWeek(Date) = Thursday) or
-//     (DayOfWeek(Date) = Friday) or
          false then
     begin
      if (TIME <= horarioInicial) or 
         (TIME >= horarioFinal) then
-//     if (TIME <= horarioInicialManha) or 
-//        (TIME >= horarioFinalManha) then
      begin
         executeTrades := false;
         ClosePosition;
      end;
     end
 
-  else if ((DayOfWeek(Date) = Thursday)) then
+  else if (DayOfWeek(Date) = Thursday) and not(operarQuinta) then
       begin
-//        if (TIME <= horarioInicialManha) or 
-//           (TIME >= horarioFinalManha) then
+//        if (TIME <= horarioInicialQuinta) or 
+//           (TIME >= horarioFinalQuinta) then
            begin
               executeTrades := false;
               ClosePosition;
            end;      
       end
       
-  else if (DayOfWeek(Date) = Friday) then
+  else if (DayOfWeek(Date) = Friday) and not(operarSexta) then
      begin
-//        if (TIME <= horarioInicialManha) or 
-//           (TIME >= horarioFinalManha) then
+//        if (TIME <= horarioInicialSexta) or 
+//           (TIME >= horarioFinalSexta) then
            begin
               executeTrades := false;
               ClosePosition;
