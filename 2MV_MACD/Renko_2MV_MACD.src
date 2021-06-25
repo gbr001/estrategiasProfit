@@ -40,16 +40,16 @@ input
   // Horarios limite de negociacao da estrategia
   // Em backtests foi verificado em operações durante a 1a hora
   // geravam menos retorno.
-  horarioInicial(1100);
+  horarioInicial(1030);
   horarioFinal(1650);
 
   operarQuinta(false);
-  horarioInicialQuinta(1000);
-  horarioFinalQuinta(1300);
+  horarioInicialQuinta(1030);
+  horarioFinalQuinta(1650);
 
   operarSexta(false);
-  horarioInicialSexta(1000);
-  horarioFinalSexta(1300);
+  horarioInicialSexta(1030);
+  horarioFinalSexta(1650);
 
   // Valor do MACD histograma maximo aceito para entrada
   // TODO: analisar, pois nesse momento nao esta com um valor de corte
@@ -173,20 +173,30 @@ begin // BEGIN 01
      end;
     end
 
-  else if (DayOfWeek(Date) = Thursday) and not(operarQuinta) then
+  else if (DayOfWeek(Date) = Thursday) then
       begin
-//        if (TIME <= horarioInicialQuinta) or 
-//           (TIME >= horarioFinalQuinta) then
+        if (not(operarQuinta)) then
+           begin 
+              executeTrades := false;
+              ClosePosition;
+           end
+        else if (TIME <= horarioInicialQuinta) or 
+           (TIME >= horarioFinalQuinta) then
            begin
               executeTrades := false;
               ClosePosition;
            end;      
       end
       
-  else if (DayOfWeek(Date) = Friday) and not(operarSexta) then
+  else if (DayOfWeek(Date) = Friday) then
      begin
-//        if (TIME <= horarioInicialSexta) or 
-//           (TIME >= horarioFinalSexta) then
+        if (not(operarSexta)) then
+           begin 
+              executeTrades := false;
+              ClosePosition;
+           end
+        else if (TIME <= horarioInicialSexta) or 
+           (TIME >= horarioFinalSexta) then
            begin
               executeTrades := false;
               ClosePosition;
