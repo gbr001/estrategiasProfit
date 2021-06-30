@@ -261,7 +261,7 @@ begin // BEGIN 01
                (Close > sMediumMMs) and
                (macdval-macdmargin > sSignalMACD) and
                (Close > s2MVHigh) and  //Caso positivo do 2MV_Padrao
-               (macdTrend < macdMax ) and
+               (Abs(macdTrend) < macdMax ) and
                ((macdTrend[2] < macdTrend[1]) and (macdTrend[1] < macdTrend));
             
             // Variavel que contabiliza a maior parte do setup para venda   
