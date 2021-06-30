@@ -1,0 +1,333 @@
+// Autor: Gustavo Brand (TODO colocar email)
+// Fonte: Diferentes canais no youtube e ultimamente
+//        o Canal Viver de Trade no youtube com o Henrique
+//        tem trabalhado com um este tipo de setup 
+//        em periodicidades maiores (15R pro WDO)
+
+// Alvo principal: WDO com renko 8R no intraday
+// Adaptado e testado com lucro no WIN 35R. 
+
+// Indicacao de coloracao + Compra/Venda:
+
+// Compra: no fechamento acima de medias exp 21 e 72 + 
+//         MADC histograma 150,14,14 acima de 0 + 
+//         apos candle branco do 2MV_Padrao.
+// TODO: descrever as demais condições ativas que estão sendo verificadas.
+ 
+// Venda: no fechamento abaixo de medias exp 21 e 72 + 
+//         MADC histograma 150,14,14 abaixo de 0 + 
+//         apos candle branco do 2MV_Padrao.
+// TODO: descrever as demais condições ativas que estão sendo verificadas. 
+
+const
+  RespiroTicks = 0; //7 ticks WDO == 3.5pts == 1 candle no 8R
+
+  // TODO: verificar como aproveitar melhor os alvos de fibo
+  //       nao estao em uso no momento
+  AlvoFibo1 = 1.00;
+  AlvoFibo2 = 1.61;
+  AlvoFibo3 = 2.00;
+
+  // Horario normal de operacao, que pode ser alterado nos parametros abaixo
+  horarioInicialPadrao = 1030;
+  horarioFinalPadrao = 1650;
+                      
+input
+  TwoMVPeriod(20);
+  FastPeriodMMs(21);
+  MediumPeriodMMs(72);
+  StopPeriodMMs(6);
+
+  LongPeriodMACD(150);
+  FastPeriodMACD(14);
+  SignalPeriodMACD(14);
+
+  // Horarios limite de negociacao da estrategia
+  // Em backtests foi verificado em operações durante a 1a hora
+  // geravam menos retorno.  
+  operarSegunda(true);
+  operarTerca(true);
+  operarQuarta(true);
+  operarQuinta(false);
+  operarSexta(false);
+  horarioInicialSegunda(horarioInicialPadrao);
+  horarioFinalSegunda(horarioFinalPadrao);
+  horarioInicialTerca(horarioInicialPadrao);
+  horarioFinalTerca(horarioFinalPadrao);
+  horarioInicialQuarta(horarioInicialPadrao);
+  horarioFinalQuarta(horarioFinalPadrao);
+  horarioInicialQuinta(horarioInicialPadrao);
+  horarioFinalQuinta(horarioFinalPadrao);
+  horarioInicialSexta(horarioInicialPadrao);
+  horarioFinalSexta(horarioFinalPadrao);
+
+  // Valor do MACD histograma maximo aceito para entrada
+  // TODO: analisar, pois nesse momento nao esta com um valor de corte
+  //       que faca diferenca, esta deixando passar tudo
+  macdMax(10000); // 10000 para WIN 35R; 20 pra WDO 8R passa tudo.
+                    // TODO: analisar de 2000 a 4000 para o WIN 45R
+                    // TODO: analisar de 10 para cima no WDO 8R
+
+  macdMin(1); // Esse valor é levado em conta no MACD histograma
+               // para que pelo menos 1 barra dentre as 3 ultimas
+               // sera maior ou igual a macdMin. No caso do WDO 8R, 1
+               // parece um valor minimo aceitavel, mas isso deve
+               // ser alterado para outros ativos ou periodos.
+               // TODO: pensar uma forma de calcular isso automaticamente
+
+var
+  R : Float;
+  sFastMMs   : Float;
+  sMediumMMs : Float;
+  sStopMMs : Float;
+
+  s2MVHigh : Float;
+  s2MVLow : Float; 
+  sMediumMMsMax : Float;
+  sMediumMMsMin : Float;
+  sMediumMMConstant : Float;
+
+  sLongMACD   : Float; 
+  sFastMACD   : Float;
+  sSignalMACD : Float;
+  macdval : Float;
+  macdval2 : Float;
+  macdDiff : Float;
+  macdTrend : Float;
+  macdmargin : Float; //Margem de aceite da operacao quando 
+                      //em torno de 0. Valor de +- 1 para WDO 15R.
+
+  stopInit         : Float;
+  stopVarianceInit : Float;
+  stopTrailing     : Float;
+
+  buySignal : Boolean;
+  sellSignal : Boolean;
+  neutralCandle : Boolean;
+  macdPositiveTrend : Boolean;
+  macdNegativeTrend : Boolean;
+
+  i : Integer;
+  executeTrades : Boolean;
+
+begin // BEGIN 01
+
+  // Caso se deseje entrar na operacao nao no rompimento do alvo 
+  // mas com uma ordem limite alguns ticks acima ou abaixo, 
+  // configurar o RespiroTicks. Nesse momento está zerado.
+  R := RespiroTicks * MinPriceIncrement;
+
+  // Setup do valor de trailing stop desejado.
+  // Nesse momento isso não tem muita funcionalidade
+  // pois as saidas estao ocorrendo pela ocorrencia de
+  // um candle invertido/contrario. É uma melhoria a se 
+  // fazer realizar um trailing stop decente.
+  stopInit := Abs(Close-Open)*2.53; // Stops em 3 candles: 15R=21; 8R=9.5; 7R=9 
+  stopVarianceInit := 0;
+  stopTrailing := Abs(Close-Open)*2.5; // Stops em 3 candles: 15R=21; 8R=9.5; 7R=9
+  macdmargin := 0;
+
+  // Variaveis de controle para sinalizar entrada na compra, venda
+  // ou se o 2MV_Padrao está neutro, sem sinalizacao positiva ou negativa 
+  buySignal := false;
+  sellSignal := false;
+  neutralCandle := false;
+
+  // Nota importante sobre o algoritmo no Profit:
+  // Para se ter os valores de indicadores e medias 
+  // calculados corretametne eh preciso que eles 
+  // sejam executados em todos os momentos e nao somente
+  // dentro de alguma condicao if/else.
+
+  sFastMMs := MediaExp(FastPeriodMMs,Close);
+  sMediumMMs := MediaExp(MediumPeriodMMs,Close);
+  sStopMMs := MediaExp(StopPeriodMMs,Close);
+
+  // Faixa em que na mm72 pode-se detectar um comportamento lateral.
+  // Nesse caso, é verificado se em um intervalo/canal muito fino
+  // os candles não estão em tendencia lateral.
+  // TODO 1: analisar se faz sentido, pois diminiu o rendimento em backtests
+  //         com um valor de 0.000026 ou 0.00003. 
+  // TODO 2: usar isso em conjunto com a verificacao do MACD histograma ter
+  //         valores menores que 1 (ou algo nesse patamar) em um intervalor
+  //         dos ultimos 3 candles. 
+  sMediumMMConstant := 0.0000001; // Valor de 0.000026 para cima impediu operacoes 
+                                  // de exemplo stopadas entre 11 e 12h de 13/abr/2021. 
+  sMediumMMsMax := sMediumMMs*(1+sMediumMMConstant);        
+  sMediumMMsMin := sMediumMMs*(1-sMediumMMConstant);
+
+  // Calculo do MACD, sinal do MACD e calculo manual do histograma
+  // em macdTrend. Através desse ultimo conseguimos detectar se 
+  // o MACD está em tendencia (seja positiva ou negativa) para entrar.
+  macdval := MACD(LongPeriodMACD, FastPeriodMACD, SignalPeriodMACD)|0|;
+  sSignalMACD := MediaExp(SignalPeriodMACD, macdval);
+  macdTrend := macdval - sSignalMACD ;
+  plot(macdval);
+  plot2(sSignalMACD); // media que parece o traco mais longo
+
+  // Calculo do indicador 2MV_Padrao
+  s2MVHigh := Media(TwoMVPeriod, High); // de forma simples: Media(20, High) 
+  s2MVLow := Media(TwoMVPeriod, Low);   // de forma simples: Media(20, Low)
+  neutralCandle := ((Close <= s2MVHigh) and (Close >= s2MVLow));
+
+  // Variavel que contabiliza a maior parte do setup para compra
+  buySignal := (Close > sFastMMs) and 
+     (Close > sMediumMMs) and
+     (macdval-macdmargin > sSignalMACD) and
+     (Close > s2MVHigh) and  //Caso positivo do 2MV_Padrao
+     (Abs(macdTrend) < macdMax ) and
+     ((macdTrend[2] < macdTrend[1]) and (macdTrend[1] < macdTrend)) and
+     (neutralCandle[1] or neutralCandle[2] or 
+      neutralCandle[3] or neutralCandle[4] or
+      neutralCandle[5] or neutralCandle[6]) and 
+     (not((sMediumMMs[1] <= sMediumMMsMax) and (sMediumMMs[1] >= sMediumMMsMin)) and
+      not((sMediumMMs[2] <= sMediumMMsMax) and (sMediumMMs[2] >= sMediumMMsMin))) and
+      not((abs(macdTrend[0])<macdMin) and (abs(macdTrend[1])<macdMin) and (abs(macdTrend[2])<macdMin)) and 
+     (Close > Close[1]);
+  
+  // Variavel que contabiliza a maior parte do setup para venda   
+  sellSignal := (Close < sFastMMs) and 
+     (Close < sMediumMMs) and
+     (macdval+macdmargin < sSignalMACD) and
+     (Close < s2MVLow)  and  //Caso negativo do 2MV_Padrao    
+     (Abs(macdTrend) < macdMax ) and
+     ((macdTrend[2] > macdTrend[1]) and (macdTrend[1] > macdTrend)) and
+     (neutralCandle[1] or neutralCandle[2] or
+      neutralCandle[3] or neutralCandle[4] or
+      neutralCandle[5] or neutralCandle[6]) and
+     (not((sMediumMMs[1] <= sMediumMMsMax) and (sMediumMMs[1] >= sMediumMMsMin)) and
+      not((sMediumMMs[2] <= sMediumMMsMax) and (sMediumMMs[2] >= sMediumMMsMin))) and
+     not((abs(macdTrend[0])<macdMin) and (abs(macdTrend[1])<macdMin) and (abs(macdTrend[2])<macdMin)) and  
+     (Close < Close[1]);
+
+  // Verificacao de dias e horarios em que vamos operar.    
+  executeTrades := true;
+
+  if (DayOfWeek(Date) = Monday) then
+      begin
+        if (not(operarSegunda)) then
+           begin 
+              executeTrades := false;
+              ClosePosition;
+           end
+        else if (TIME <= horarioInicialSegunda) or 
+           (TIME >= horarioFinalSegunda) then
+           begin
+              executeTrades := false;
+              ClosePosition;
+           end;      
+      end
+  else if (DayOfWeek(Date) = Tuesday) then
+      begin
+        if (not(operarTerca)) then
+           begin 
+              executeTrades := false;
+              ClosePosition;
+           end
+        else if (TIME <= horarioInicialTerca) or 
+           (TIME >= horarioFinalTerca) then
+           begin
+              executeTrades := false;
+              ClosePosition;
+           end;      
+      end
+  else if (DayOfWeek(Date) = Wednesday) then
+      begin
+        if (not(operarQuarta)) then
+           begin 
+              executeTrades := false;
+              ClosePosition;
+           end
+        else if (TIME <= horarioInicialQuarta) or 
+           (TIME >= horarioFinalQuarta) then
+           begin
+              executeTrades := false;
+              ClosePosition;
+           end;      
+      end
+  else if (DayOfWeek(Date) = Thursday) then
+      begin
+        if (not(operarQuinta)) then
+           begin 
+              executeTrades := false;
+              ClosePosition;
+           end
+        else if (TIME <= horarioInicialQuinta) or 
+           (TIME >= horarioFinalQuinta) then
+           begin
+              executeTrades := false;
+              ClosePosition;
+           end;      
+      end      
+  else if (DayOfWeek(Date) = Friday) then
+     begin
+        if (not(operarSexta)) then
+           begin 
+              executeTrades := false;
+              ClosePosition;
+           end
+        else if (TIME <= horarioInicialSexta) or 
+           (TIME >= horarioFinalSexta) then
+           begin
+              executeTrades := false;
+              ClosePosition;
+           end;
+     end;
+
+  if (executeTrades) then
+    begin  // BEGIN 02      
+      if (BuyPosition >= 1) then
+        begin
+          if (Close <= sStopMMs) then
+            begin
+              CancelPendingOrders;        
+              SellToCoverAtMarket;
+              PaintBar(clYellow);
+            end
+          else
+              PaintBar(clGreen);
+        end
+
+      // Em caso de posicao vendida, baixar o stop ou stopar o trade
+      else if (SellPosition >= 1) then
+        begin
+          if (Close >= sStopMMs) then
+            begin
+              CancelPendingOrders;        
+              BuyToCoverAtMarket;
+              PaintBar(clYellow);
+            end
+          else
+              PaintBar(clMaroon);
+        end
+
+      // Caso não se esteja nem comprado, nem vendido vamos
+      // analisar se temos sinal de compra ou venda.
+      else if (BuyPosition = 0) and (SellPosition = 0) then
+        begin // BEGIN 03
+            if (buySignal) then
+               begin
+                 if (BuyPosition = 0) and 
+                    (Close > Open) then                     
+                   begin
+                     BuyStop(Close+R, Close+R);
+                     //BuyAtMarket;
+                     SellShortStop(Close-stopInit+stopVarianceInit, Close-stopInit);                     
+                     PaintBar(clLime);
+                   end;                 
+               end
+            else if (sellSignal) then
+               begin                
+                 if (SellPosition = 0) and
+                    (Close < Open) then
+                   begin
+                     SellShortStop(Close-R, Close-R);
+                     //SellShortAtMarket;
+                     BuyStop(Close+stopInit-stopVarianceInit, Close+stopInit);                  
+                     PaintBar(clRed);
+                   end;
+               end;
+ 
+        end; // END 03
+    end; // END 02 
+end; // END 01
