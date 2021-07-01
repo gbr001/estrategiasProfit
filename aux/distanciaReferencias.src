@@ -1,0 +1,74 @@
+var
+  v, vfiltrado, aux, preco : float;
+  i, j, largura : Integer;
+
+Inicio
+  //se (date = currentdate) então
+    begin
+
+      v[0] := PriorCote(0);
+      v[1] := PriorCote(2);
+      v[2] := PriorCote(3);
+      v[3] := VWAP(1);
+      v[4] := VWAP(2);
+      v[5] := VWAP(3);
+      v[6] := KeltnerCh(14.0,200,0)|1|;
+      v[7] := KeltnerCh(19.0,200,0)|1|;
+      v[8] := KeltnerCh(14.0,200,0)|0|;
+      v[9] := KeltnerCh(19.0,200,0)|0|;
+      v[10] := Mediaexp(197,close);
+
+      largura := 10;
+
+      for i := 0 to largura-1 do
+        begin
+          for j := 0 to largura-1 do
+            begin
+              if (v[j] > v[j + 1]) then
+                begin
+                  aux := v[j];
+                  v[j] := v[j + 1];
+                  v[j + 1] := aux;
+                end;
+            end;
+        end;
+
+      se (fechamento > abertura) então
+        begin
+          j := 0;
+          preco := fechamento;
+          for i := 0 to largura do
+            begin
+              if (v[i] > preco) then
+                begin
+                  vfiltrado[j] := v[i];
+                  j := j + 1;
+                end;
+            end;
+          se (j > 0) entao 
+            begin
+              //plot(vfiltrado[0]);
+              plot(vfiltrado[0]-Close);
+            end;
+        end;
+
+      se (fechamento < abertura) então
+        begin
+          j := 0;
+          preco := fechamento;
+          for i := 0 to largura do
+            begin
+              if (v[i] < preco) then
+                begin
+                  vfiltrado[j] := v[i];
+                  j := j + 1;
+                end;
+            end;
+          se (j > 0) então
+            begin
+              //plot(vfiltrado[j - 1]);
+              plot(vfiltrado[j-1]-Close);
+            end;
+        end;
+    end;
+end;
