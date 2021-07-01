@@ -1,0 +1,104 @@
+// Autor: Gustavo Brand 
+// Baseado em boa parte no código de 
+// ScApp_C_FechaForaEnvelope (SchillerApp. https://ScApp.link)
+
+// Configurações : 
+//  Periodo(Inteiro) - Quantos períodos serão utlizados no cálculo.
+//    - Padrão (20) - 20 Períodos.
+//  Desvio(Real) - Valor para cálculo do Desvio.
+//    - Padrão (2.0) - Normalmente 2.0
+//  TipoMedia(Inteiro) - (0 a 3) Tipo da Média Móvel utilizada no cálculo
+//    0 : Média Aritmética
+//    1 : Média Exponencial
+//    2 : Média Welles Wilder
+//    3 : Média Ponderada 
+//  Tipo(Inteiro) - Pode ser um valor de 0 a 2.
+//    - Padrão (0) 
+//    0 = Ambos (Compra e Venda)
+//    1 = Apenas Compra
+//    2 = Apenas Venda 
+//
+
+Const
+  RespiroTicks        = 0;
+  AlvoFibo            = 1.0;
+
+Parametro
+  Periodo(20);
+  Desvio(2.0);
+  Dados(Fechamento);
+  TipoMedia(0);
+  Tipo(0);
+  HorarioInicial(1000);
+  HorarioFinal(1650);
+
+var
+  vBandaMedia    : Real;
+  vBandaSuperior : Real;
+  vBandaInferior : Real;
+
+  bb            : Real;
+  sinalC,sinalV : Booleano;
+
+  R : Real;
+  EntradaC, StopC, AlvoC : Real;
+  EntradaV, StopV, AlvoV : Real;
+
+Inicio
+  
+  vBandaMedia := Summation(Dados,Periodo) / Periodo;
+  vBandaSuperior := vBandaMedia + (StdDevs(Dados,Periodo) * Desvio);
+  vBandaInferior := vBandaMedia - (StdDevs(Dados,Periodo) * Desvio);
+  
+  // Plotagem
+  Plot(vBandaSuperior);
+  Plot2(vBandaMedia);
+  Plot3(vBandaInferior);
+
+  bb := BollingerBPerc(Desvio,Periodo,TipoMedia);
+  sinalC := (bb[1] < 0) e (bb[0] > 0);
+  sinalV := (bb[1] > 100) e (bb[0] < 100);
+  R := RespiroTicks * MinPriceIncrement;
+
+  if (TIME < HorarioInicial) and (TIME > HorarioFinal) then
+    begin
+       ClosePosition;
+    end
+  else
+    begin               
+      Se (sinalC) e ((Tipo = 0) ou (Tipo = 1)) entao
+        begin
+          PaintBar(clLime);
+              
+          // EntradaC := Maxima[1] + R;
+          // StopC := Minima[1] - R;
+          // AlvoC := Maxima[1] + ((Maxima[1] - Minima[1]) * AlvoFibo);
+          EntradaC := Close + R;
+          StopC := Close - Abs(Close-Open);
+          AlvoC := Close + Abs(Close-Open);
+    
+          BuyStop(EntradaC,EntradaC);
+          SellToCoverLimit(AlvoC);
+          SellToCoverStop(StopC,StopC); 
+        end;
+         
+      Se (sinalV) e ((Tipo = 0) ou (Tipo = 2)) entao
+        begin
+          PaintBar(clRed);
+    
+          // EntradaV := Minima[1] - R;
+          // StopV := Maxima[1];
+          // AlvoV := Minima[1] - ((Maxima[1] - Minima[1]) * AlvoFibo);
+          EntradaV := Close - R;
+          StopV := Close + Abs(Close-Open);
+          AlvoV := Close - Abs(Close-Open);
+    
+          SellShortStop(EntradaV, EntradaV);
+          BuyToCoverLimit(AlvoV);
+          BuyToCoverStop(StopV,StopV);
+
+        end;
+
+    end;
+
+Fim;
