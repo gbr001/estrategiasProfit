@@ -74,8 +74,8 @@ Inicio
           // StopC := Minima[1] - R;
           // AlvoC := Maxima[1] + ((Maxima[1] - Minima[1]) * AlvoFibo);
           EntradaC := Close + R;
-          StopC := Close - Abs(Close-Open);
-          AlvoC := Close + Abs(Close-Open);
+          StopC := Close - Abs(Close-Open)*2;
+          AlvoC := Close + Abs(Close-Open)*2;
     
           BuyStop(EntradaC,EntradaC);
           SellToCoverLimit(AlvoC);
@@ -90,8 +90,8 @@ Inicio
           // StopV := Maxima[1];
           // AlvoV := Minima[1] - ((Maxima[1] - Minima[1]) * AlvoFibo);
           EntradaV := Close - R;
-          StopV := Close + Abs(Close-Open);
-          AlvoV := Close - Abs(Close-Open);
+          StopV := Close + Abs(Close-Open)*2;
+          AlvoV := Close - Abs(Close-Open)*2;
     
           SellShortStop(EntradaV, EntradaV);
           BuyToCoverLimit(AlvoV);
@@ -99,6 +99,21 @@ Inicio
 
         end;
 
-    end;
+      // Se estiver comprado - buscar saída
+      Se (BuyPosition > 0) entao
+        inicio
+          SellToCoverLimit(AlvoC);
+          SellToCoverStop(StopC,StopC);
+          Se (Minima <= StopC) entao SellToCoverAtMarket;      
+        fim;
 
+      // Se estiver vendido - buscar saída
+      Se (SellPosition > 0) entao
+        inicio
+          BuyToCoverLimit(AlvoV);
+          BuyToCoverStop(StopV,StopV);
+          Se (Maxima >= StopV) entao BuyToCoverAtMarket;      
+        fim;
+   end;
+    
 Fim;
