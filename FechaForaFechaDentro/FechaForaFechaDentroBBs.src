@@ -2,35 +2,30 @@
 // Baseado em boa parte no código de 
 // ScApp_C_FechaForaEnvelope (SchillerApp. https://ScApp.link)
 
-// Configurações : 
-//  Periodo(Inteiro) - Quantos períodos serão utlizados no cálculo.
-//    - Padrão (20) - 20 Períodos.
-//  Desvio(Real) - Valor para cálculo do Desvio.
-//    - Padrão (2.0) - Normalmente 2.0
-//  TipoMedia(Inteiro) - (0 a 3) Tipo da Média Móvel utilizada no cálculo
-//    0 : Média Aritmética
-//    1 : Média Exponencial
-//    2 : Média Welles Wilder
-//    3 : Média Ponderada 
-//  Tipo(Inteiro) - Pode ser um valor de 0 a 2.
-//    - Padrão (0) 
-//    0 = Ambos (Compra e Venda)
-//    1 = Apenas Compra
-//    2 = Apenas Venda 
-//
-
 Const
   RespiroTicks        = 0;
   AlvoFibo            = 1.0;
 
 Parametro
-  Periodo(20);
-  Desvio(2.0);
+  Periodo(20);  //  Periodo(Inteiro) - Quantos períodos serão utlizados no cálculo.
+  Desvio(2.0);  //  Desvio(Real) - Valor para cálculo do Desvio.
   Dados(Fechamento);
+
+  // TipoMedia(Inteiro) - (0 a 3) Tipo da Média Móvel utilizada no cálculo
+  //  0 : Média Aritmética -- Padrao
+  //  1 : Média Exponencial
+  //  2 : Média Welles Wilder
+  //  3 : Média Ponderada 
   TipoMedia(0);
+
+  // Tipo(Inteiro) - Pode ser um valor de 0 a 2.
+  //  0 = Ambos (Compra e Venda) -- Padrao
+  //  1 = Apenas Compra
+  //  2 = Apenas Venda 
   Tipo(0);
-  HorarioInicial(1000);
-  HorarioFinal(1650);
+
+  HorarioInicial(0905);
+  HorarioFinal(1750);  
 
 var
   vBandaMedia    : Real;
@@ -43,6 +38,8 @@ var
   R : Real;
   EntradaC, StopC, AlvoC : Real;
   EntradaV, StopV, AlvoV : Real;
+
+  AlvoEmPontos, StopEmPontos : Real;
 
 Inicio
   
@@ -59,6 +56,8 @@ Inicio
   sinalC := (bb[1] < 0) e (bb[0] > 0);
   sinalV := (bb[1] > 100) e (bb[0] < 100);
   R := RespiroTicks * MinPriceIncrement;
+  AlvoEmPontos := (Abs(Close-Open)*1);
+  StopEmPontos := (Abs(Close-Open)*1);
 
   if (TIME < HorarioInicial) and (TIME > HorarioFinal) then
     begin
@@ -74,8 +73,8 @@ Inicio
           // StopC := Minima[1] - R;
           // AlvoC := Maxima[1] + ((Maxima[1] - Minima[1]) * AlvoFibo);
           EntradaC := Close + R;
-          StopC := Close - Abs(Close-Open)*2;
-          AlvoC := Close + Abs(Close-Open)*2;
+          StopC := Close - StopEmPontos;
+          AlvoC := Close + AlvoEmPontos;
     
           BuyStop(EntradaC,EntradaC);
           SellToCoverLimit(AlvoC);
@@ -90,8 +89,8 @@ Inicio
           // StopV := Maxima[1];
           // AlvoV := Minima[1] - ((Maxima[1] - Minima[1]) * AlvoFibo);
           EntradaV := Close - R;
-          StopV := Close + Abs(Close-Open)*2;
-          AlvoV := Close - Abs(Close-Open)*2;
+          StopV := Close + StopEmPontos;
+          AlvoV := Close - AlvoEmPontos;
     
           SellShortStop(EntradaV, EntradaV);
           BuyToCoverLimit(AlvoV);
