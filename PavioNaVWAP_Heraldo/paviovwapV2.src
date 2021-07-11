@@ -1,0 +1,139 @@
+// Autor: Gustavo Brand
+// Codigo baseado em boa parte no fonte de ScApp_C_CruzamentoMM de SchillerApp. https://ScApp.link 
+// Operacional em estudo com Heraldo no canal Estudos de Mercado no Discord (https://discord.gg/UdZ8E8HM).
+
+// Descricao: Essa rotina realiza a coloracao e sinais de compra e venda
+//            para o primeiro candle do dia que deixar um pavio/sombra
+//            sobre a VWAP, seja para compra ou venda.
+// Uso: pensado e testado com nivel de acerto acima de 60% no WINFUT 30R e 50R, WDOFUT 15R e 25R.
+// Alvo: 1 candle para cima.
+// Stop: 1 candle para baixo.
+
+// TODO: realizar testes com alvos e stops diferentes, buscando uma melhor curva.
+// TODO: usar a media lenta para determinacao de tendencia e lado das operacoes.
+
+// Configurações da media lenta: (ainda não sendo usada) 
+//  Dados(Serie) - Série de dados utilizada no cálculo da media (Fechamento, maxima, minima)
+//  MediaLenta(Inteiro) - Quantos períodos serão utlizados no cálculo da Média Lenta.
+//  TipoMedia(Inteiro) - (0 a 3) Tipo da Média Móvel utilizada no cálculo
+//    0 : Média Aritmética; 1 : Média Exponencial; 2 : Média Welles Wilder; 3 : Média Ponderada
+
+Const
+  // Configuraçao
+  RespiroTicks        = 0;
+  AlvoFiboGain        = 1.618; // Nao está em uso no momento
+  AlvoFiboStop        = 1.618; // Nao está em uso no momento
+  DayTrade            = Verdadeiro;
+  HoraEntradaInicio   = 0905;
+  HoraEntradaFim      = 1730;
+  HoraFechamento      = 1730; // Horário da Penúltima Barra
+
+Parametro
+  Dados(Fechamento);
+  MediaLenta(80);
+  TipoMedia(0);
+
+var
+  mmL, mmVWAP : Real;
+  sinalC, sinalV : Booleano;
+
+  R, tamanhoCandle, AlvoEmPontos, StopEmPontos: Real;
+  EntradaC, StopC, AlvoC : Real;
+  EntradaV, StopV, AlvoV : Real;
+
+  dataCandle1 : Inteiro;
+
+Inicio
+
+  // Calculos
+  R := RespiroTicks * MinPriceIncrement;
+  tamanhoCandle := abs(Close-Open);
+  AlvoEmPontos := tamanhoCandle*1; // Alterar se quiser testar outros alvos
+  StopEmPontos := tamanhoCandle*1; // Alterar se quiser testar outros stops
+  mmVWAP := VWAP(1);
+
+  Se (TipoMedia = 0) entao
+      mmL := Media(MediaLenta,Dados)
+  Senao Se (TipoMedia = 1) entao
+      mmL := MediaExp(MediaLenta,Dados)
+  Senao Se (TipoMedia = 2) entao
+      mmL := WellesSum(MediaLenta,Dados,0)/MediaLenta
+  Senao Se (TipoMedia = 3) entao
+      mmL := WAverage(Dados,MediaLenta);
+
+  plot(mmVWAP);
+  plot2(mmL);       
+
+  sinalC := (MINIMA < mmVWAP) and 
+            (open > mmVWAP) and
+            (Close > Open) and 
+            true;
+
+  sinalV := (MAXIMA > mmVWAP) and 
+            (open < mmVWAP) and
+            (Close < Open) and 
+            true;
+
+  // Busca Entrada
+  Se (BuyPosition = 0) e (SellPosition = 0) e 
+     ((Daytrade e (Time >= HoraEntradaInicio) e 
+     (Time < HoraEntradaFim)) ou
+     (DayTrade = Falso)) e 
+     (dataCandle1 <> Date) entao
+    inicio
+      // Compra
+      Se SinalC entao
+        inicio
+          PaintBar(clLime);
+          dataCandle1 := Date;
+  
+          EntradaC := Close + R;
+          //StopC := Close - tamanhoCandle - R;
+          StopC := Close - StopEmPontos - R;
+          //AlvoC := Close + tamanhoCandle;
+          AlvoC := Close + AlvoEmPontos;
+  
+          BuyStop(EntradaC,EntradaC);
+          SellToCoverLimit(AlvoC);
+          SellToCoverStop(StopC,StopC);        
+        fim;
+  
+      // Venda
+      Se SinalV entao
+        inicio
+          PaintBar(clRed);
+          dataCandle1 := Date;
+  
+          EntradaV := Close - R;
+          //StopV := Close + tamanhoCandle;
+          StopV := Close + StopEmPontos;
+          //AlvoV := Close - tamanhoCandle;
+          AlvoV := Close - AlvoEmPontos;
+  
+          SellShortStop(EntradaV, EntradaV);
+          BuyToCoverLimit(AlvoV);
+          BuyToCoverStop(StopV,StopV);
+        fim;
+    fim;
+
+  // Se estiver comprado - buscar saída
+  Se (BuyPosition > 0) entao
+    inicio
+      SellToCoverLimit(AlvoC);
+      SellToCoverStop(StopC,StopC);
+      Se (Minima <= StopC) entao SellToCoverAtMarket;      
+    fim;
+
+  // Se estiver vendido - buscar saída
+  Se (SellPosition > 0) entao
+    inicio
+      BuyToCoverLimit(AlvoV);
+      BuyToCoverStop(StopV,StopV);
+      Se (Maxima >= StopV) entao BuyToCoverAtMarket;
+    fim;
+
+  // Fechar Posiçoes no Final do Dia
+  Se (DayTrade) e (Time >= HoraFechamento) entao 
+    ClosePosition;
+
+Fim;
