@@ -1,4 +1,3 @@
-
 // Operacional em estudo com Lucas e Pedro no canal Estudos de Mercado no Discord (https://discord.gg/UdZ8E8HM).
 // Codigo usou de base operacional o fontes de SchillerApp. https://ScApp.link 
 
@@ -8,15 +7,15 @@ Const
   // Configuraçao
   RespiroTicks        = 0;
   DayTrade            = Verdadeiro;
-  HoraEntradaInicio   = 0905;
-  HoraEntradaFim      = 1730;
-  HoraFechamento      = 1730; // Horário da Penúltima Barra
 
 parametro
   PeriodoRapido(8);
   PeriodoLento(80);
   AlvoEmPontos(14);
   StopEmPontos(5);
+  HoraEntradaInicio(0905);
+  HoraEntradaFim(1730);
+  HoraFechamento(1730); // Horário da Penúltima Barra
 
 var
   mmRapida : real;
