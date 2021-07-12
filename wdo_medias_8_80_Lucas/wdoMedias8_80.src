@@ -1,0 +1,114 @@
+// Autor: Gustavo Brand
+// Operacional em estudo com Lucas e Pedro no canal Estudos de Mercado no Discord (https://discord.gg/UdZ8E8HM).
+// Codigo usou de base operacional o fontes de SchillerApp. https://ScApp.link 
+
+// Estrategia com foco no WDO 30R com mais de 60% de assertividade.
+
+Const
+  // Configuraçao
+  RespiroTicks        = 0;
+  DayTrade            = Verdadeiro;
+  HoraEntradaInicio   = 0905;
+  HoraEntradaFim      = 1730;
+  HoraFechamento      = 1730; // Horário da Penúltima Barra
+
+parametro
+  PeriodoRapido(8);
+  PeriodoLento(80);
+  AlvoEmPontos(14);
+  StopEmPontos(5);
+
+var
+  mmRapida : real;
+  mmLenta : real;
+  Compra, Venda : booleano;
+
+  sinalC, sinalV : Booleano;
+
+  R : Real;
+  EntradaC, StopC, AlvoC : Real;
+  EntradaV, StopV, AlvoV : Real;
+
+  dataCandle1 : Inteiro;
+
+Inicio
+
+  // Calculos
+  R := RespiroTicks * MinPriceIncrement;
+  mmRapida := Media(PeriodoRapido, ABERTURA);
+  mmLenta := Media(PeriodoLento, ABERTURA);
+
+  Plot(mmRapida);
+  Plot2(mmLenta);
+
+  // Sinais de entrada
+  sinalC := (abertura >= mmLenta) e 
+            (FECHAMENTO > mmRapida) e
+            true;
+
+  sinalV := (abertura <= mmLenta) e 
+            (FECHAMENTO < mmRapida) e
+            true;
+
+  // Busca Entrada
+  Se (BuyPosition = 0) e (SellPosition = 0) e 
+     ((Daytrade e (Time >= HoraEntradaInicio) e 
+     (Time < HoraEntradaFim)) ou
+     (DayTrade = Falso)) e 
+     //(dataCandle1 <> Date) e // Caso queira se realizar somente 1 trade no dia
+     true entao
+    inicio
+      // Compra
+      Se SinalC entao
+        inicio
+          PaintBar(clLime);
+          dataCandle1 := Date;
+  
+          //EntradaC := Close + R;
+          BuyAtMarket;
+          StopC := BuyPrice - StopEmPontos - R;
+          AlvoC := BuyPrice + AlvoEmPontos;
+  
+          //BuyStop(EntradaC,EntradaC);
+          SellToCoverLimit(AlvoC);
+          SellToCoverStop(StopC,StopC);        
+        fim;
+  
+      // Venda
+      Se SinalV entao
+        inicio
+          PaintBar(clRed);
+          dataCandle1 := Date;
+  
+          //EntradaV := Close - R;
+          SellShortAtMarket;
+          StopV := SellPrice + StopEmPontos;
+          AlvoV := SellPrice - AlvoEmPontos;
+  
+          //SellShortStop(EntradaV, EntradaV);
+          BuyToCoverLimit(AlvoV);
+          BuyToCoverStop(StopV,StopV);
+        fim;
+    fim;
+
+  // Se estiver comprado - buscar saída
+  Se (BuyPosition > 0) entao
+    inicio
+      SellToCoverLimit(AlvoC);
+      SellToCoverStop(StopC,StopC);
+      Se (Minima <= StopC) entao SellToCoverAtMarket;      
+    fim;
+
+  // Se estiver vendido - buscar saída
+  Se (SellPosition > 0) entao
+    inicio
+      BuyToCoverLimit(AlvoV);
+      BuyToCoverStop(StopV,StopV);
+      Se (Maxima >= StopV) entao BuyToCoverAtMarket;
+    fim;
+
+  // Fechar Posiçoes no Final do Dia
+  Se (DayTrade) e (Time >= HoraFechamento) entao 
+    ClosePosition;
+
+fim;
