@@ -24,7 +24,7 @@ Const
   AlvoFiboGain        = 1.618; // Nao está em uso no momento
   AlvoFiboStop        = 1.618; // Nao está em uso no momento
   DayTrade            = Verdadeiro;
-
+  
 Parametro
   Dados(Fechamento);
   MediaLenta(80);
@@ -32,6 +32,8 @@ Parametro
   HoraEntradaInicio(0900);
   HoraEntradaFim(1730);
   HoraFechamento(1730); // Horário da Penúltima Barra
+  NroCandlesAlvo(1);
+  NroCandlesStop(1);
 
 var
   mmL, mmVWAP : Real;
@@ -48,8 +50,8 @@ Inicio
   // Calculos
   R := RespiroTicks * MinPriceIncrement;
   tamanhoCandle := abs(Close-Open);
-  AlvoEmPontos := tamanhoCandle*1; // Alterar se quiser testar outros alvos
-  StopEmPontos := tamanhoCandle*1; // Alterar se quiser testar outros stops
+  AlvoEmPontos := tamanhoCandle*NroCandlesAlvo; // Alterar se quiser testar outros alvos
+  StopEmPontos := tamanhoCandle*NroCandlesStop; // Alterar se quiser testar outros stops
   mmVWAP := VWAP(1);
 
   Se (TipoMedia = 0) entao
