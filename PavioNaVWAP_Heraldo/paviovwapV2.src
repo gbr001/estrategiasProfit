@@ -24,14 +24,14 @@ Const
   AlvoFiboGain        = 1.618; // Nao está em uso no momento
   AlvoFiboStop        = 1.618; // Nao está em uso no momento
   DayTrade            = Verdadeiro;
-  HoraEntradaInicio   = 0905;
-  HoraEntradaFim      = 1730;
-  HoraFechamento      = 1730; // Horário da Penúltima Barra
 
 Parametro
   Dados(Fechamento);
   MediaLenta(80);
   TipoMedia(0);
+  HoraEntradaInicio(0900);
+  HoraEntradaFim(1730);
+  HoraFechamento(1730); // Horário da Penúltima Barra
 
 var
   mmL, mmVWAP : Real;
