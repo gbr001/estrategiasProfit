@@ -67,23 +67,14 @@ input
 
 var
   R : Float;
-  sFastMMs   : Float;
-  sMediumMMs : Float;
-  s2MVHigh : Float;
-  s2MVLow : Float; 
-  sMediumMMsMax : Float;
-  sMediumMMsMin : Float;
-  sMediumMMConstant : Float;
+  sFastMMs, sMediumMMs, s2MVHigh, s2MVLow : Float; 
+  sMediumMMsMax, sMediumMMsMin, sMediumMMConstant : Float;
 
-  sLongMACD   : Float; 
-  sFastMACD   : Float;
-  sSignalMACD : Float;
-  macdval : Float;
-  macdval2 : Float;
-  macdDiff : Float;
-  macdTrend : Float;
+  sLongMACD, sFastMACD, sSignalMACD : Float;
+  macdval, macdval2, macdDiff, macdTrend : Float;
   macdmargin : Float; //Margem de aceite da operacao quando 
                       //em torno de 0. Valor de +- 1 para WDO 15R.
+  mmMACDHistogram : Float;
 
   stopInit         : Float;
   stopVarianceInit : Float;
@@ -149,8 +140,11 @@ begin // BEGIN 01
   macdval := MACD(LongPeriodMACD, FastPeriodMACD, SignalPeriodMACD)|0|;
   sSignalMACD := MediaExp(SignalPeriodMACD, macdval);
   macdTrend := macdval - sSignalMACD ;
-  plot(macdval);
-  plot2(sSignalMACD); // media que parece o traco mais longo
+  mmMACDHistogram := MediaExp(SignalPeriodMACD, macdTrend); // MMExp 14p sobre o histograma
+
+//  plot(macdval);
+//  plot2(sSignalMACD); // media que parece o traco mais longo
+  plot3(mmMACDHistogram);
 
   // Calculo do indicador 2MV_Padrao
   s2MVHigh := Media(TwoMVPeriod, High); // de forma simples: Media(20, High) 
@@ -262,7 +256,9 @@ begin // BEGIN 01
                (macdval-macdmargin > sSignalMACD) and
                (Close > s2MVHigh) and  //Caso positivo do 2MV_Padrao
                (Abs(macdTrend) < macdMax ) and
-               ((macdTrend[2] < macdTrend[1]) and (macdTrend[1] < macdTrend));
+               ((macdTrend[2] < macdTrend[1]) and (macdTrend[1] < macdTrend)) and
+               //(mmMACDHistogram > mmMACDHistogram[1]) and
+               true;
             
             // Variavel que contabiliza a maior parte do setup para venda   
             sellSignal := (Close < sFastMMs) and 
@@ -270,7 +266,9 @@ begin // BEGIN 01
                (macdval+macdmargin < sSignalMACD) and
                (Close < s2MVLow)  and  //Caso negativo do 2MV_Padrao    
                (Abs(macdTrend) < macdMax ) and
-               ((macdTrend[2] > macdTrend[1]) and (macdTrend[1] > macdTrend));
+               ((macdTrend[2] > macdTrend[1]) and (macdTrend[1] > macdTrend)) and
+               //(mmMACDHistogram < mmMACDHistogram[1]) and
+               true;
                
             // Se verifica: 
             // 1. Se o setup de compra esta valido;
@@ -341,3 +339,4 @@ begin // BEGIN 01
         end; // END 03
    end; // END 02 
 end; // END 01
+
