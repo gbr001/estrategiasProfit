@@ -1,0 +1,92 @@
+// Máximas e Mínimas intraday L&S Quant
+
+// Adaptacoes realizadas por Gustavo Brand no codigo disponibilizado publicamente
+// pela L&S Quant através de seu canal no Telegram (https://t.me/joinchat/7Jxte_P8KoRhNDhh)
+// e divulgado em videos como https://www.youtube.com/watch?v=eqExnL9Euao
+
+// Executar no WINFUT 15min
+
+input
+  nroBarrasAnaliseEntrada(1);   // Número de barras para serem analisadas entrada
+  nroBarrasAlvoGain(2);         // Número de barras para serem analisadas para alvo
+  nroBarrasStopTempo(2);        // Número de barras para sair do trade ao utilizar stop no tempo
+  stopNoTempo(true);            // Utilizar stop no tempo
+  closePosAtFirstProfit(true);  // Encerrar posição no primeiro fechamento no lucro
+  dayTradeOnly(true);           // Encerrar a operação como daytrade
+
+  //Configurações de KeltnerCh   
+  kchperiodo(13);  // Desvio  do Canal de Keltner
+  kchdesvio(1.90); // Período do Canal de Keltner
+  kchtipo(3);      // Método de cálculo do Keltner: 0-Aritmético; 1-Exponencial; 2-Welles Wilder; 3-Ponderada
+  HoraEntradaFim(1300);        // Horário para encerramento das operações DT
+  HoraFechamento(1300);       // Horário limite para abertura das operações
+
+var
+  nbarra : integer;
+  bandaKeltnerSup, bandaKeltnerInf : Real;
+
+begin
+
+  bandaKeltnerSup := KeltnerCh(kchdesvio,kchperiodo,kchtipo)|0|;
+  bandaKeltnerInf := KeltnerCh(kchdesvio,kchperiodo,kchtipo)|1|;
+
+  plot(bandaKeltnerSup);
+  plot2(bandaKeltnerInf);
+
+  if (IsBought = true) or (IsSold = true) then
+
+    begin
+      if (buyposition > 0) then
+        begin
+          if ((TIME >= HoraEntradaFim) and (dayTradeOnly)) or
+              false or 
+             (((CurrentBar - nbarra) > (nroBarrasStopTempo - 1)) and (stopNoTempo)) or
+              false or
+             ((close > buyprice) and ((Currentbar - nbarra) >= 1) and (closePosAtFirstProfit)) or
+              false then
+            begin
+              PaintBar(clYellow);
+              closeposition;
+            end;
+
+          SellToCoverLimit(highest(high, nroBarrasAlvoGain));
+
+        end;
+
+      if (sellposition > 0) then
+        begin
+          if ((TIME >= HoraEntradaFim) and (dayTradeOnly)) or
+              false or  
+             (((CurrentBar - nbarra) > (nroBarrasStopTempo - 1)) and (stopNoTempo)) or
+              false or 
+             ((close < sellprice) and ((Currentbar - nbarra) >= 1) and (closePosAtFirstProfit)) or
+              false then
+            begin
+              PaintBar(clYellow);
+              closeposition;
+            end;
+
+          BuyToCoverLimit(lowest(low, nroBarrasAlvoGain));
+
+        end;
+    end
+
+  else if (IsBought = false) and (IsSold = false) and (TIME < HoraFechamento) then
+    begin
+      //FECHAMENTO ACIMA DO KELTNER SUPERIOR E INFERIOR
+      if (close > bandaKeltnerSup) and (close > bandaKeltnerInf) then
+        begin
+          PaintBar(clGreen);
+          buylimit(lowest(low, nroBarrasAnaliseEntrada));
+          nbarra := CurrentBar;
+        end;
+
+      //FECHAMENTO ABAIXO DO KELTNER SUPERIOR E INFERIOR
+      if (close < bandaKeltnerSup) and (close < bandaKeltnerInf) then
+        begin
+          PaintBar(clMaroon);
+          SellShortLimit(highest(high, nroBarrasAnaliseEntrada));
+          nbarra := CurrentBar;
+        end;
+    end;
+end;
