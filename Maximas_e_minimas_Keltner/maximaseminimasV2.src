@@ -1,0 +1,85 @@
+// Máximas e Mínimas intraday L&S Quant
+
+// Adaptacoes realizadas por Gustavo Brand no codigo disponibilizado publicamente
+// pela L&S Quant através de seu canal no Telegram (https://t.me/joinchat/7Jxte_P8KoRhNDhh)
+// e divulgado em videos como https://www.youtube.com/watch?v=eqExnL9Euao
+
+input
+  pentrada(4);     // Número de barras para serem analisadas entrada;
+  palvo(2);        // Número de barras para serem analisadas para alvo;
+  stopnbarra(4);   // Número de barras para sair do trade ao utilizar stop no tempo;
+  stoptempo(2);    // Utilizar stop no tempo:                            1 - sim; 2 - não;
+  flucro(1);       // Encerrar posição no primeiro fechamento no lucro:  1 - sim; 2 - não;
+  dt(1);           // Encerrar a operação como daytrade:                 1 - sim; 2 - não;
+
+  //Configurações de KeltnerCh   
+  kchperiodo(21);  // Desvio  do Canal de Keltner;
+  kchdesvio(0.38); // Período do Canal de Keltner;
+  kchtipo(1);      // Método de cálculo do Keltner: 0-Aritmético; 1-Exponencial; 2-Welles Wilder; 3-Ponderada;
+  HF(1730);        // Horário para encerramento das operações DT;
+  HLA(1730);       // Horário limite para abertura das operações;
+
+var
+  nbarra : integer;
+  bandaKeltnerSup, bandaKeltnerInf : Real;
+
+begin
+
+  bandaKeltnerSup := KeltnerCh(kchdesvio,kchperiodo,kchtipo)|0|;
+  bandaKeltnerInf := KeltnerCh(kchdesvio,kchperiodo,kchtipo)|1|;
+  plot(bandaKeltnerSup);
+  plot2(bandaKeltnerInf);
+
+  if (IsBought = true) or (IsSold = true) then
+
+    begin
+      if (buyposition > 0) then
+        begin
+          if ((TIME >= HF) and (dt = 1)) or 
+             ((CurrentBar - nbarra > stopnbarra - 1) and (stoptempo = 1)) or
+             ((close > buyprice) and (Currentbar - nbarra >= 1) and (flucro = 1)) or
+              false then
+            begin
+              PaintBar(clYellow);
+              closeposition;
+            end;
+
+          SellToCoverLimit(highest(high,palvo));
+
+        end;
+
+      if (sellposition > 0) then
+        begin
+          if ((TIME >= HF) and (dt = 1)) or 
+             ((CurrentBar - nbarra > stopnbarra - 1) and (stoptempo = 1)) or
+             ((close < sellprice) and (Currentbar - nbarra >= 1) and (flucro = 1)) or
+              false then
+            begin
+              PaintBar(clYellow);
+              closeposition;
+            end;
+
+          BuyToCoverLimit(lowest(low, palvo));
+
+        end;
+    end
+
+  else if (IsBought = false) and (IsSold = false) and (TIME < HLA) then
+    begin
+      //FECHAMENTO ACIMA DO KELTNER SUPERIOR E INFERIOR
+      if (close > bandaKeltnerSup) and (close > bandaKeltnerInf) then
+        begin
+          PaintBar(clGreen);
+          buylimit(lowest(low, pentrada));
+          nbarra := CurrentBar;
+        end;
+
+      //FECHAMENTO ABAIXO DO KELTNER SUPERIOR E INFERIOR
+      if (close < bandaKeltnerSup) and (close < bandaKeltnerInf) then
+        begin
+          PaintBar(clMaroon);
+          SellShortLimit(highest(high, pentrada));
+          nbarra := CurrentBar;
+        end;
+    end;
+end;
