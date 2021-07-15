@@ -38,6 +38,9 @@ begin
     begin
       if (buyposition > 0) then
         begin
+        
+          SellToCoverLimit(highest(high, nroBarrasAlvoGain));
+          
           if ((TIME >= HoraEntradaFim) and (dayTradeOnly)) or
               false or 
              (((CurrentBar - nbarra) > (nroBarrasStopTempo - 1)) and (stopNoTempo)) or
@@ -48,13 +51,13 @@ begin
               PaintBar(clYellow);
               closeposition;
             end;
-
-          SellToCoverLimit(highest(high, nroBarrasAlvoGain));
-
         end;
 
       if (sellposition > 0) then
         begin
+        
+          BuyToCoverLimit(lowest(low, nroBarrasAlvoGain));
+          
           if ((TIME >= HoraEntradaFim) and (dayTradeOnly)) or
               false or  
              (((CurrentBar - nbarra) > (nroBarrasStopTempo - 1)) and (stopNoTempo)) or
@@ -65,9 +68,6 @@ begin
               PaintBar(clYellow);
               closeposition;
             end;
-
-          BuyToCoverLimit(lowest(low, nroBarrasAlvoGain));
-
         end;
     end
 
