@@ -2,6 +2,9 @@
 // Entrada no WINFUT no rompimento da 1a hora, somente compra
 // Usar com grafico de 1min ou 5min.
 
+// TODO: estudar uso com alvos curtos no WIN (ex: 50pts de alvo e 20 de stop)
+// TODO: estudar uso com periodo levemente diferente, como 70min, por ex, ao inves de 60min
+
 Const
   RespiroTicks        = 0;
   AlvoFibo            = 1.0;
