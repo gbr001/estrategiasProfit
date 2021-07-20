@@ -1,0 +1,109 @@
+// Autor: Gustavo Brand
+// Entrada no WINFUT no rompimento da 1a hora, somente compra
+// Usar com grafico de 1min ou 5min.
+
+// TODO: estudar uso com alvos curtos no WIN (ex: 50pts de alvo e 20 de stop)
+// TODO: estudar uso com periodo levemente diferente, como 70min, por ex, ao inves de 60min
+
+Const
+  RespiroTicks        = 0;
+  AlvoFibo            = 1.0;
+
+input
+  FastPeriod(9);
+  MediumPeriod(21); 
+
+  primeiraHoraStart(0900); 
+  primeiraHoraEnd(1000);
+  horaInicio(1000); //WIN
+  horaFim(1700); //WIN
+
+  AlvoPercentual(2); // Alvo em % do valor de entrada
+  StopPercentual(2); // Stop em % do valor de entrada
+
+var
+  mmFast : Float;
+  mmMedium : Float;
+  topFirstHour : Float;
+  countTrades : Integer;
+
+  R : Real;
+  EntradaC, StopC, AlvoC : Real;
+  EntradaV, StopV, AlvoV : Real;
+  NroBarras : Integer;  
+
+begin
+
+  R := RespiroTicks * MinPriceIncrement; 
+  mmFast := MediaExp(FastPeriod, Close);
+  mmMedium := Media(MediumPeriod, Close);
+  plot(mmFast);
+  plot2(mmMedium);
+
+  // Alvo no candle que fecha as 10:00
+  if (time >= MinutesToTime(TimeToMinutes(primeiraHoraEnd)-BarDuration)) and
+     (time < primeiraHoraEnd) then
+  begin
+    paintBar(clFuchsia);
+
+    // TODO: achar uma forma de calcular a parte inteira da divisao e
+    //       evitar ter que fazer essa sequencia de ifs
+    if (BarDuration = 1) then
+      NroBarras := 30
+    else if (BarDuration = 5) then
+      NroBarras := 6
+    else if (BarDuration = 30) then
+      NroBarras := 1;  
+
+    topFirstHour := Highest(High, NroBarras);
+  end
+
+  else if (time < MinutesToTime(TimeToMinutes(primeiraHoraEnd)-BarDuration)) then
+  begin
+    PaintBar(clNavy);
+    topFirstHour := 0;
+    countTrades := 0;
+  end;
+  // Alvo do horario em todos candles antes das 10:00
+  if (time >= horaInicio) and 
+     (topFirstHour <> 0) and 
+     (time < horaFim) then
+  begin
+     
+    // Primeira hora de pregao
+    if (BuyPosition = 0) and (SellPosition = 0) and
+       (Close > topFirstHour) and
+       (countTrades = 0) then
+       begin 
+         //TODO: condicionar a compra com a mm9 acima da mm21
+         if (Close > (mmFast[1])) then //and
+         begin
+          EntradaC := topFirstHour + R;
+          StopC := EntradaC*(1-(StopPercentual/100));
+          AlvoC := EntradaC*(1+(AlvoPercentual/100));
+    
+          BuyStop(EntradaC,EntradaC);
+          SellToCoverLimit(AlvoC);
+          SellToCoverStop(StopC,StopC);
+          
+          countTrades := countTrades + 1;
+          PaintBar(clLime);
+         end;
+       end;
+  
+  
+      // Se estiver comprado - buscar saída
+      if (BuyPosition > 0) then
+        begin
+          SellToCoverLimit(AlvoC);
+          SellToCoverStop(StopC,StopC);
+          Se (Minima <= StopC) entao SellToCoverAtMarket;      
+        end;
+
+  end;
+
+  if (time >= horaFim) then
+    ClosePosition;
+  end;
+
+end;
