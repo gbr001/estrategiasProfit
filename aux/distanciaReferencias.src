@@ -8,22 +8,6 @@ Inicio
   //se (date = currentdate) então
     begin
 
-//      v[0] := PriorCote(0); 
-//      v[1] := PriorCote(2);
-//      v[2] := PriorCote(3);
-//      v[3] := PriorCote(4);
-//      v[4] := VWAP(1);
-//      v[5] := VWAP(2);
-//      v[6] := VWAP(3);
-//      v[7] := KeltnerCh(14.0,200,0)|1|;
-//      v[8] := KeltnerCh(19.0,200,0)|1|;
-//      v[9] := KeltnerCh(14.0,200,0)|0|;
-//      v[10] := KeltnerCh(19.0,200,0)|0|;
-//      v[11] := Mediaexp(197,close);
-//      // v[11] := mediaexp(21,close);
-//      v[12] := MediaExp(42,close);
-//      v[13] := PriorCote(0);
-
       v[10] := 10;
       v[9] := 20;
       v[8] := 30;
@@ -35,18 +19,6 @@ Inicio
       v[2] := 90;
       v[1] := 100;
       v[0] := 110;
-
-//      vfiltrado[0] := 0;
-//      vfiltrado[1] := 0;
-//      vfiltrado[2] := 0;
-//      vfiltrado[3] := 0;
-//      vfiltrado[4] := 0;
-//      vfiltrado[5] := 0;
-//      vfiltrado[6] := 0;
-//      vfiltrado[7] := 0;
-//      vfiltrado[8] := 0;
-//      vfiltrado[9] := 0;
-//      vfiltrado[10] := 0;
 
       largura := 10;
       precoTest := 55;
