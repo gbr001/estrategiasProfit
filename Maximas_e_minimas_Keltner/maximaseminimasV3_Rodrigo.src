@@ -1,8 +1,8 @@
 //Máximas e Mínimas intraday
 
 input
-  pentrada(2);    //Número de barras para serem analisadas entrada;
-  palvo(2);       //Número de barras para serem analisadas para alvo;
+  pentrada(1);    //Número de barras para serem analisadas entrada;
+  palvo(1);       //Número de barras para serem analisadas para alvo;
   stopnbarra(2);  //Número de barras para sair do trade ao utilizar stop no tempo;
   stoptempo(1);   //Utilizar stop no tempo:                            1 - sim; 2 - não;
   flucro(1);      //Encerrar posição no primeiro fechamento no lucro:  1 - sim; 2 - não;
@@ -13,13 +13,13 @@ input
   
   //--
   //Configurações de KeltnerCh
-  kchperiodo(21); //Período do Canal de Keltner;
-  kchdesvio(0.38); //Desvio  do Canal de Keltner;
+  kchperiodo(17); //Período do Canal de Keltner;
+  kchdesvio(0.05); //Desvio  do Canal de Keltner;
   kchtipo(1);     //Método de cálculo do Keltner: 0-Aritmético; 1-Exponencial; 2-Welles Wilder; 3-Ponderada;
   //--
-  HI(0100);
-  HF(1400);       // Horário para encerramento das operações DT;
-  HLA(1200);      // Horário limite para abertura das operações;
+  HI(0905);
+  HF(1730);       // Horário para encerramento das operações DT;
+  HLA(1730);      // Horário limite para abertura das operações;
 //------------------------------------------------------------CÓDIGO-------------------------------------------------------------
 
 
