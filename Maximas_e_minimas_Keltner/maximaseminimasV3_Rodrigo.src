@@ -6,11 +6,16 @@ input
   stopnbarra(2);  //Número de barras para sair do trade ao utilizar stop no tempo;
   stoptempo(1);   //Utilizar stop no tempo:                            1 - sim; 2 - não;
   flucro(1);      //Encerrar posição no primeiro fechamento no lucro:  1 - sim; 2 - não;
+  Lucro_minimo(0);
   dt(1);          //Encerrar a operação como daytrade:                 1 - sim; 2 - não;
-  slip_e(0.00);    //Slip das entradas no alvo dolar dolar 0.5
-  Slip_s(0.00);    //Slip das saida no alvo dolar dolar 0.5
-        
-  
+  slip_e(0);      //Slip das entradas no alvo dolar dolar 0.5
+  Slip_s(0);      //Slip das saida no alvo dolar dolar 0.5
+  distancia_Keltner(20); // Não entrar a favor da tendencia quando o preço estiver muito longe da Keltner      
+  Minimo_Candle(3);   // Tamanho Keltner
+  Stop_loss(1);    //Utilizar stop no tempo:                            1 - sim; 2 - não;
+  loss(14);        // Quantidade de pontos para Stop Loss dolar 14 indice 400
+
+
   //--
   //Configurações de KeltnerCh
   kchperiodo(17); //Período do Canal de Keltner;
@@ -27,66 +32,111 @@ input
 //------------------------------------------------------------CÓDIGO-------------------------------------------------------------
   var
     nbarra : integer;
-    bprice,sprice : float;
-  
+    saida      : integer;
+    D_Keltner1,D_Keltner2: float;
+    Stop_C, Stop_V,bprice,sprice: float;
+
   begin
-       if (IsBought=true) or (IsSold=true) then
+       D_Keltner1:= KeltnerCh(kchdesvio,kchperiodo,kchtipo)|0|+Distancia_Keltner;
+       D_Keltner2:= KeltnerCh(kchdesvio,kchperiodo,kchtipo)|1|-Distancia_Keltner;
+       Plot(D_Keltner1);
+       Plot2(D_Keltner2);
+       Plot3(Stop_C);
+       Plot4(Stop_V);
+
+              
+       if (buyposition>=1) or (sellposition>=1) then
        begin
-       if (buyposition = 1) then
-      begin
-        
-        if (TIME >= HF) and (dt=1) then
-          begin
-            closeposition;
-          end
-        
-        else if (CurrentBar - nbarra > stopnbarra - 1) and (stoptempo=1) and (fechamento < highest(high,palvo)) then
+       if (buyposition >= 1) then
          begin
-            closeposition;
-          end
         
-        else if (close > bprice) and (Currentbar - nbarra >= 1) and (flucro=1) and (fechamento < highest(high,palvo)) then
-          begin
-            closeposition;
-          end;
-        if (abertura <= bprice) then  SellToCoverLimit(highest(high,palvo)-slip_s);
-      end;
-    if (sellposition = 1) then
+          if ((TIME >= HF) and (dt=1)) or (CurrentBar - nbarra = stopnbarra ) and (stoptempo=1) or ((fechamento >= (bprice+lucro_minimo)) and (flucro=1)) then
+            ClosePosition
+     
+          Else 
+              Begin
+                SellToCoverLimit(highest(high,palvo)-slip_s);
+                SellToCoverStop(stop_C,Stop_C);
+                If (fechamento<stop_C) then
+                    ClosePosition;
+              End;
+
+        end;
+    if (sellposition >= 1) then
       begin
-        
-        if (TIME >= HF) and (dt=1) then
-          begin
-            closeposition;
-          end
-        Else if (CurrentBar - nbarra > stopnbarra - 1) and (stoptempo=1) and (fechamento>lowest(low,palvo)) then
-          begin
-            closeposition;
-          end
-        Else if (close < Sprice) and (Currentbar - nbarra >= 1) and (flucro=1) then
-         begin
-           closeposition;
-          end
-        Else if (abertura >= Sprice) and (CurrentBar - nbarra < stopnbarra ) then BuyToCoverLimit(lowest(low,palvo)+slip_s);
-      end; 
+        if ((TIME >= HF) and (dt=1)) or ((CurrentBar - nbarra = stopnbarra ) and (stoptempo=1)) or ((fechamento <= (sprice-lucro_minimo)) and (flucro=1))  then
+            ClosePosition
+
+          Else
+            Begin  
+              BuyToCoverLimit(lowest(low,palvo)+slip_s);
+              BuyToCoverStop(stop_V,stop_V);
+                   If (fechamento>stop_V) then
+                      ClosePosition;
+             
+            End;
+
+       end; 
     end
 
-    else if (IsBought=false) and (IsSold=false) and (TIME < HLA) and ( TIME > HI ) then
+    Else if (not isbought) and (not IsSold) and (Buyposition=0) and (SellPosition=0) and (TIME <= HLA) and ( TIME > HI ) then
       begin
         if (close > KeltnerCh(kchdesvio,kchperiodo,kchtipo)|0|) //FECHAMENTO ACIMA DO KELTNER SUPERIOR
         and(close > KeltnerCh(kchdesvio,kchperiodo,kchtipo)|1|) //FECHAMENTO ACIMA DO KELTNER INFERIOR
+        and ( Low < D_Keltner1 )
+        and (range[0]>=minimo_candle)
         then
           begin
-            bprice:=(lowest(low,pentrada)+ slip_e);
+            bprice:= (lowest(low,pentrada)+slip_e);            
             buylimit(bprice);
             nbarra := CurrentBar;
+            Stop_C:=  bprice - loss;
+            SellToCoverStop(Stop_C,Stop_C);
+            //SellToCoverStop(highest(high,palvo)-slip_s,highest(high,palvo)-slip_s);
           end;
         if  (close < KeltnerCh(kchdesvio,kchperiodo,kchtipo)|0|) //FECHAMENTO ABAIXO DO KELTNER SUPERIOR
         and (close < KeltnerCh(kchdesvio,kchperiodo,kchtipo)|1|) //FECHAMENTO ABAIXO DO KELTNER INFERIOR
+        and ( High > D_Keltner2 )
+        and (range[0]>=minimo_candle)
         then
           begin
-            Sprice:=(highest(high,pentrada)- slip_e);
-            SellShortLimit(Sprice);
+            sprice:=(highest(high,pentrada)-slip_e);
+            SellShortLimit(sprice);
             nbarra := CurrentBar;
+            stop_V:= sprice + loss;
+            BuyToCoverStop(Stop_C,Stop_C);
+            //BuyToCoverStop(lowest(low,palvo)+slip_s,lowest(low,palvo)+slip_s);
+            end;
+
+          end;
+        if (close > KeltnerCh(kchdesvio,kchperiodo,kchtipo)|0|) //FECHAMENTO ACIMA DO KELTNER SUPERIOR
+        and(close > KeltnerCh(kchdesvio,kchperiodo,kchtipo)|1|) //FECHAMENTO ACIMA DO KELTNER INFERIOR
+        and ( Low < D_Keltner1 )
+        and (range[0]<minimo_candle)
+        then
+          begin
+            bprice:= (lowest(low,pentrada+1)+slip_e);            
+            buylimit(bprice);
+            nbarra := CurrentBar;
+            Stop_C:=  bprice - loss;
+            SellToCoverStop(Stop_C,Stop_C);
+            //SellToCoverStop(highest(high,palvo)-slip_s,highest(high,palvo)-slip_s);
+          end;
+        if  (close < KeltnerCh(kchdesvio,kchperiodo,kchtipo)|0|) //FECHAMENTO ABAIXO DO KELTNER SUPERIOR
+        and (close < KeltnerCh(kchdesvio,kchperiodo,kchtipo)|1|) //FECHAMENTO ABAIXO DO KELTNER INFERIOR
+        and ( High > D_Keltner2 )
+        and (range[0]<minimo_candle)
+        then
+          begin
+            sprice:=(highest(high,pentrada+1)-slip_e);
+            SellShortLimit(sprice);
+            nbarra := CurrentBar;
+            stop_V:= sprice + loss;
+            BuyToCoverStop(Stop_C,Stop_C);
+            //BuyToCoverStop(lowest(low,palvo)+slip_s,lowest(low,palvo)+slip_s);
+            end;
+
           end;
       end;
+      
  end;
