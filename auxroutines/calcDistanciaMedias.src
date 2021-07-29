@@ -1,0 +1,114 @@
+var
+  v, vfiltrado : float;
+  aux, preco, precoTest : float;
+  i, j, largura : Integer;
+
+Inicio
+
+  //se (date = currentdate) então
+    begin
+
+//      v[0] := PriorCote(0); 
+//      v[1] := PriorCote(2);
+//      v[2] := PriorCote(3);
+//      v[3] := PriorCote(4);
+//      v[4] := VWAP(1);
+//      v[5] := VWAP(2);
+//      v[6] := VWAP(3);
+//      v[7] := KeltnerCh(14.0,200,0)|1|;
+//      v[8] := KeltnerCh(19.0,200,0)|1|;
+//      v[9] := KeltnerCh(14.0,200,0)|0|;
+//      v[10] := KeltnerCh(19.0,200,0)|0|;
+//      v[11] := Mediaexp(197,close);
+//      // v[11] := mediaexp(21,close);
+//      v[12] := MediaExp(42,close);
+//      v[13] := PriorCote(0);
+
+      v[10] := 10;
+      v[9] := 20;
+      v[8] := 30;
+      v[7] := 40;
+      v[6] := 50;
+      v[5] := 60;
+      v[4] := 70;
+      v[3] := 80;
+      v[2] := 90;
+      v[1] := 100;
+      v[0] := 110;
+
+//      vfiltrado[0] := 0;
+//      vfiltrado[1] := 0;
+//      vfiltrado[2] := 0;
+//      vfiltrado[3] := 0;
+//      vfiltrado[4] := 0;
+//      vfiltrado[5] := 0;
+//      vfiltrado[6] := 0;
+//      vfiltrado[7] := 0;
+//      vfiltrado[8] := 0;
+//      vfiltrado[9] := 0;
+//      vfiltrado[10] := 0;
+
+      largura := 10;
+      precoTest := 55;
+
+      for i := 0 to largura-1 do
+        begin
+          for j := 0 to largura-1 do
+            begin
+              if (v[j] > v[j + 1]) then
+                begin
+                  aux := v[j];
+                  v[j] := v[j + 1];
+                  v[j + 1] := aux;
+                end;
+            end;
+        end;
+      plot(v[0]);
+      plot2(v[10]);
+
+      //se (fechamento > abertura) então
+        begin
+          j := 0;
+          //preco := fechamento;
+          preco := 5;  // Testes: 5,15,55,105,115 - deve indicar sempre o patamar acima.
+          for i := 0 to largura do
+            begin
+              if (v[i] > preco) then
+                begin
+                  vfiltrado[j] := v[i];
+                  j := j + 1;
+                end;
+            end;
+          se (j > 0) entao 
+            begin
+              //plot(vfiltrado[0]);
+              //plot(vfiltrado[0]-Close);
+            end;
+        end;
+      plot3(vfiltrado[0]);
+
+
+      //se (fechamento < abertura) então
+        begin
+          j := 0;
+          //preco := fechamento;
+          preco := 15; // Testes: 5,15,55,105,115 - deve indicar sempre o patamar abaixo.
+          for i := 0 to largura do
+            begin
+              if (v[i] < preco) then
+                begin
+                  vfiltrado[j] := v[i];
+                  j := j + 1;
+                end;
+            end;
+          se (j > 0) então
+            begin
+              //plot(vfiltrado[j - 1]);
+              //plot(vfiltrado[j-1]-Close);
+            end;
+        end;
+      plot4(vfiltrado[j-1]);
+
+
+    end;
+end;
