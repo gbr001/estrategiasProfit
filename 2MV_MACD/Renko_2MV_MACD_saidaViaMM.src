@@ -29,14 +29,18 @@ const
   AlvoFibo3 = 2.00;
 
   // Horario normal de operacao, que pode ser alterado nos parametros abaixo
-  horarioInicialPadrao = 1030;
+  //horarioInicialPadrao = 0905;
+  horarioInicialPadrao = 0930;
+  //horarioInicialPadrao = 1000;
+  //horarioInicialPadrao = 1030;
+  //horarioInicialPadrao = 1100;
   horarioFinalPadrao = 1650;
                       
 input
   TwoMVPeriod(20);
   FastPeriodMMs(21);
   MediumPeriodMMs(72);
-  StopPeriodMMs(6);
+  StopPeriodMMs(9); //TODO: 9 periodos eh uma boa alternativa tambem
 
   LongPeriodMACD(150);
   FastPeriodMACD(14);
@@ -48,8 +52,11 @@ input
   operarSegunda(true);
   operarTerca(true);
   operarQuarta(true);
+  //operarQuinta(true);
   operarQuinta(false);
-  operarSexta(false);
+  operarSexta(true);
+  //operarSexta(false);
+
   horarioInicialSegunda(horarioInicialPadrao);
   horarioFinalSegunda(horarioFinalPadrao);
   horarioInicialTerca(horarioInicialPadrao);
