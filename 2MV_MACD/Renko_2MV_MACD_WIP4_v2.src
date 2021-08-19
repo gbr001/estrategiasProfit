@@ -280,7 +280,7 @@ begin // BEGIN 01
       mmTrix := Media(4, linhaTrix);
     end;
 
-  if (stopConfig = 6) or (tradeConfig = 6) then
+  if (tradeConfig = 6) then
     begin
       // valores Didi Index default (fixo)
       D1:= DiDiIndex(8,0,3, 0, 20, 1)|0|; 
