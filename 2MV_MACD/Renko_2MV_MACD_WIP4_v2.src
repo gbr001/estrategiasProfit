@@ -85,41 +85,45 @@ input
               // TODO: pensar uma forma de calcular isso automaticamente
 
 
+  // Parametros de configuracao de realizacao parcial 
   realizacaoParcial(false);
   qtdeContratos(1);
-//  realizacaoParcial(true);
-//  qtdeContratos(2);
+//  realizacaoParcial(true); //**
+//  qtdeContratos(2);        //**
 
-  qtdeContratosParciais(1);
-  realizacaoParcialConfig(0);
+  qtdeContratosParciais(1);  //**
+  realizacaoParcialConfig(1);  
   // 0: realizacao parcial com alvo fixo em ptos
-  // 1: realizacao parcial com alvo alvo no 1o CR
-  // TODO 2: pensar em outras alternaivas.
+  // 1: realizacao parcial com alvo alvo no 1o CR **
+  // TODO : pensar em outras alternaivas.
 
   // Valores ate 10pts se mostraram interessantes
-  ptosRealizacaoParcialVenda(10); // TODO: trabalhar com diferentes alvos/cenarios
+  ptosRealizacaoParcialVenda(10);  // TODO: trabalhar com diferentes alvos/cenarios
   ptosRealizacaoParcialCompra(10); // TODO: trabalhar com diferentes alvos/cenarios
 
-  StopPeriodMMs(9); //TODO: 9 periodos eh uma boa alternativa tambem
-  stopConfig(1);
-  // 0: Stop via candle reverso (CR)
-  // 1: Stop via MME (9p por default)
-  // 2: Stop via Trix, a ser usado com DiDi Index
-  // 3: Stop via MME apos inversao do indicador HalfTrend
-  // 4: Stop via DiDi Index
-  // 5: Stop via desvio padrao com relacao ao candle anterior
-  // TODO 6: stop via Havoc
-  // TODO 7: stop via inversao do HalfTrend
 
+  // Parametros de configuracao de entrada no trade 
   tradeConfig(0);
-  // 0: Entrada via 2MV_MACD (com as filtragens existentes)
+  // 0: Entrada via 2MV_MACD (com as filtragens existentes) **
   // 1: Entrada via 2MV_MACD com validacao pelo HalfTrend
   // 2: Entrada via HalfTrend
   // 3: Entrada via DidiIndex (pura, sem DI+/DI- ou ADX)
   // 4: Entrada via DidiIndex e DI+/DI- 
   // 5: Entrada via DidiIndex e DI+/DI- e ADX > nivelADX
-  // TODO 6: entarda via Havoc  // 
+  // 6: entrada via Havoc  
   // TODO 7: Cruzamento de VWAP? a estudar.
+
+  // Parametros de configuracao de saida do trade 
+  StopPeriodMMs(9); //TODO: 9 periodos eh uma boa alternativa tambem
+  stopConfig(0);
+  // 0: Stop via candle reverso (CR)
+  // 1: Stop via MME (9p por default)
+  // 2: Stop via Trix, a ser usado com DiDi Index
+  // 3: Stop via MME apos inversao do indicador HalfTrend
+  // 4: Stop via DiDi Index
+  // 5: Stop via desvio padrao com relacao ao candle anterior **
+  // TODO 7: stop via inversao do HalfTrend
+
 
   // Parte de configuracao da Agulhada do Didi
   DIDI_media1(3);  // originalmente 3
@@ -137,8 +141,12 @@ input
 
   // Parte da configuracao do Desvio Padrao
   PeriodoStdDev(20);
-  StopMax(100); // 14pts default, a verificar
+  StopMax(7); // qtdes interessantes: 10pts, 7pts... estudar
 
+  // valores MACD default
+  HavocPeriod(9);
+  HavocFastPeriod(12);
+  HavocSlowPeriod(26);
 
 var
   R : Float;
@@ -191,6 +199,13 @@ var
 
   realizacaoParcialConfigDone : Boolean;
   candleRealizacaoParcial : Integer;
+
+  // Calculo do Havoc, base no codigo de 
+  // https://github.com/b2tradingclub/profitchart-estrategias/blob/master/Estrategias/HAVOC_Index
+  D1, D2, prevD1, prevD2: float; 
+  MMACD, prevMMACD, prevMCAD, cMACD, prevMACD : float;
+  roc1, roc2, prevRoc1, prevRoc2, HavocHilo : float; 
+  HavocComprar, HavocVender, HavocTemVolume : boolean;
 
 Funcao max (v1 : Real; v2 : Real) : Real;
   Inicio
@@ -263,6 +278,32 @@ begin // BEGIN 01
     begin
       linhaTrix := TRIX(9,1);
       mmTrix := Media(4, linhaTrix);
+    end;
+
+  if (stopConfig = 6) or (tradeConfig = 6) then
+    begin
+      // valores Didi Index default (fixo)
+      D1:= DiDiIndex(8,0,3, 0, 20, 1)|0|; 
+      D2:= DiDiIndex(8,0,3, 0, 20, 1)|1|;
+      prevD1:= D1[1];
+      prevD2:= D2[1];
+      // valores ROC default (fixo)
+      roc1 := ROC(3, 9, 1);
+      roc2 := MediaExp(6, ROC(3, 9, 1));
+      // Inicialização flags de compra e venda, e volume
+      HavocComprar:= False;
+      HavocVender:= False;
+      HavocTemVolume:= False;
+      // MACD parametrizado (default)
+      cMACD:= MACD(HavocSlowPeriod,HavocFastPeriod,HavocPeriod);
+      MMACD:= MediaExp(6, MACD(HavocSlowPeriod,HavocFastPeriod,HavocPeriod));
+      prevMACD:= cMACD[1];
+      prevMMACD:= MMACD[1];
+      prevRoc1:= roc1[1]; 
+      prevRoc2:= roc2[1];
+      HavocTemVolume:= (Volume > Media(20, Volume)) or 
+                       (Quantidade > Media(20, Quantidade));
+      HavocHilo := HiloActivator(4)|0|;
     end;
 
   // Calculo do indicador HalfTrend
@@ -454,8 +495,22 @@ begin // BEGIN 01
       ((Linha1 > Linha2) and (Linha1[1] < Linha2[1])) and 
       (DIP < DIM) and
       (Close < Close[1]);
-    end;
+    end
 
+  // 6: Entrada via Havoc
+  else if (tradeConfig = 6) then 
+    begin
+      buySignal := (roc1 > roc2) and (prevRoc1 > prevRoc2) and 
+      (prevMACD > prevMMACD) and (cMACD > MMACD) and 
+      (prevMACD < cMACD) and (D1 > D2) and 
+      (HavocHilo < Close) and (Close > Close[1]) and
+      HavocTemVolume;
+
+      sellSignal := (roc1 < roc2) and (prevRoc1 < prevRoc2) and 
+      (prevMACD < prevMMACD) and (cMACD < MMACD) and 
+      (prevMACD > cMACD) and (D1 < D2) and 
+      (HavocHilo > Close) and (Close < Close[1]);
+    end;
 
   // Verificacao de dias e horarios de operacao
   executeTrades := true;
