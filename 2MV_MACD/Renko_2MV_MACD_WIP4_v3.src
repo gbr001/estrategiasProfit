@@ -1,74 +1,66 @@
 // Autor: Gustavo Brand (TODO colocar email)
-// Fonte: Diferentes canais no youtube e ultimamente
-//        o Canal Viver de Trade no youtube com o Henrique
-//        tem trabalhado com um este tipo de setup 
-//        em periodicidades maiores (15R pro WDO)
+// Fonte: Diferentes canais no youtube 
 
 // Alvo principal: WDO com renko 8R no intraday
 // Adaptado e testado com lucro no WIN 35R. 
 
 // Indicacao de coloracao + Compra/Venda:
-
 // Compra: no fechamento acima de medias exp 21 e 72 + 
 //         MADC histograma 150,14,14 acima de 0 + 
 //         apos candle branco do 2MV_Padrao.
-// TODO: descrever as demais condições ativas que estão sendo verificadas.
- 
 // Venda: no fechamento abaixo de medias exp 21 e 72 + 
 //         MADC histograma 150,14,14 abaixo de 0 + 
 //         apos candle branco do 2MV_Padrao.
 
-// Essa versao (WIP4) tem objetivo de experimentar com a realizacao parcial
-//  fazendo a entrada com 2 contratos e saindo rapidamente em 1 deles
-// Essa versao permite tanto a operacao com ordens parciais 
-//  como sem ordens parciais.
-// A principal adicao da WIP4 é a selecao via stopViaMedia que
-//  permite a selecao da forma de stop, via candleReverso ou media.
+// Na versao (WIP4v2) tem adicoes de multiplas configuracoes
+//  de entrada, saida e realizacao parcial.
+// Na entrada o parametro tradeConfig deve ser configurado
+//  com as opcoes comentadas abaixo na area de parametros.
+// Na saida o parametro stopConfig deve ser configurado 
+//  com as opcoes comentadas abaixo na area de parametros.
+// Na realizacao parcial os parametros realizacaoParcial deve
+//  ser habilitado, em qtdeContratos deve se determinar a quantidade
+//  total de contratos na entrada, em qtdeContratosParciais deve
+//  se determinar a quantidade de contratos a serem realizados 
+//  de forma parcial e, por fim, o parametro realizacaoParcialConfig
+//  deve ser configurado com o tipo de realizacao parcial que 
+//  se deseja realizar com as opcoes comentadas abaixo na area de parametros.
 
-// Na WIP4_v2 tentando adicionar a Agulhada do DIDI como criterio 
-// de entrada/saida
+// Na versão WIPv3 está sendo testado a alteração no
+//  2MV_MACD 
 
-// Na WIP4_v3 tentando adicionar mais alguns outros indicadores
+// TODO: pensar em uma forma de controle do tradeConfig conforme 
+//       o lucro já obtido no mercado durante o dia e conforme
+//       a volatilidade.
 
 const
   RespiroTicks = 0; //7 ticks WDO == 3.5pts == 1 candle no 8R
 
-  // TODO: verificar como aproveitar melhor os alvos de fibo
-  //       nao estao em uso no momento
-  AlvoFibo1 = 1.00;
-  AlvoFibo2 = 1.61;
-  AlvoFibo3 = 2.00;
-
   // Horario normal de operacao, que pode ser alterado nos parametros abaixo
   //horarioInicialPadrao = 0905;
-  horarioInicialPadrao = 0930;
+  //horarioInicialPadrao = 0930;
   //horarioInicialPadrao = 1000;
   //horarioInicialPadrao = 1030;
-  //horarioInicialPadrao = 1100;
+  horarioInicialPadrao = 1100;
   horarioFinalPadrao = 1650;
 
+
 input
+
   TwoMVPeriod(20);
   FastPeriodMMs(21);
   MediumPeriodMMs(72);
-  StopPeriodMMs(9); //TODO: 9 periodos eh uma boa alternativa tambem
 
   LongPeriodMACD(150);
   FastPeriodMACD(14);
   SignalPeriodMACD(14);
 
   // Horarios limite de negociacao da estrategia
-  // Em backtests foi verificado em operações durante a 1a hora
-  // geravam menos retorno.  
-  operarSegunda(true);
-  operarTerca(true);
-  operarQuarta(true);
-
-  operarQuinta(false); // Quinta nao está operando
-  //operarQuinta(true); 
-
-  operarSexta(true);
-  //operarSexta(false);
+  operarSegunda(true); // default true
+  operarTerca(true);   // default true
+  operarQuarta(true);  // default true
+  operarQuinta(false); // default false
+  operarSexta(true);   // default true
 
   horarioInicialSegunda(horarioInicialPadrao);
   horarioFinalSegunda(horarioFinalPadrao);
@@ -85,30 +77,83 @@ input
   // TODO: analisar, pois nesse momento nao esta com um valor de corte
   //       que faca diferenca, esta deixando passar tudo
   macdMax(10000); // 10000 para WIN 35R; 20 pra WDO 8R passa tudo.
-                    // TODO: analisar de 2000 a 4000 para o WIN 45R
-                    // TODO: analisar de 10 para cima no WDO 8R
+                  // TODO: analisar de 2000 a 4000 para o WIN 45R
+                  // TODO: analisar de 10 para cima no WDO 8R
 
   macdMin(1); // Esse valor é levado em conta no MACD histograma
-               // para que pelo menos 1 barra dentre as 3 ultimas
-               // sera maior ou igual a macdMin. No caso do WDO 8R, 1
-               // parece um valor minimo aceitavel, mas isso deve
-               // ser alterado para outros ativos ou periodos.
-               // TODO: pensar uma forma de calcular isso automaticamente
+              // para que pelo menos 1 barra dentre as 3 ultimas
+              // sera maior ou igual a macdMin. No caso do WDO 8R, 1
+              // parece um valor minimo aceitavel, mas isso deve
+              // ser alterado para outros ativos ou periodos.
+              // TODO: pensar uma forma de calcular isso automaticamente
 
-  // Realizacao parcial no 1o candle de lucro.
-  realizacaoParcial(true);
-  qtdeContratos(2);
-  qtdeContratosParciais(1);
+
+  // Parametros de configuracao de realizacao parcial 
+//  realizacaoParcial(false);
+//  qtdeContratos(1);
+  realizacaoParcial(true); //**
+  qtdeContratos(2);        //**
+
+  qtdeContratosParciais(1);  //**
+  realizacaoParcialConfig(1);  
+  // 0: realizacao parcial com alvo fixo em ptos
+  // 1: realizacao parcial com alvo alvo no 1o CR **
+  // TODO : pensar em outras alternaivas.
+
   // Valores ate 10pts se mostraram interessantes
-  ptosRealizacaoParcialVenda(10); // TODO: trabalhar com diferentes alvos/cenarios
+  ptosRealizacaoParcialVenda(10);  // TODO: trabalhar com diferentes alvos/cenarios
   ptosRealizacaoParcialCompra(10); // TODO: trabalhar com diferentes alvos/cenarios
 
-  stopViaMedia(true); // Se verdadeiro sair via MM9, caso contrario via candle reverso
-  // TODO: estudar colocar saida via stddev tambem.
+
+  // Parametros de configuracao de entrada no trade 
+  tradeConfig(0);
+  // 0: Entrada via 2MV_MACD (com as filtragens existentes) **
+  // 1: Entrada via 2MV_MACD com validacao pelo HalfTrend
+  // 2: Entrada via HalfTrend
+  // 3: Entrada via DidiIndex (pura, sem DI+/DI- ou ADX)
+  // 4: Entrada via DidiIndex e DI+/DI- 
+  // 5: Entrada via DidiIndex e DI+/DI- e ADX > nivelADX
+  // 6: entrada via Havoc  
+  // TODO 7: Cruzamento de VWAP? a estudar.
+
+  // Parametros de configuracao de saida do trade 
+  StopPeriodMMs(9); //TODO: 9 periodos eh uma boa alternativa tambem
+  stopConfig(5);
+  // 0: Stop via candle reverso (CR)
+  // 1: Stop via MME (9p por default)
+  // 2: Stop via Trix, a ser usado com DiDi Index
+  // 3: Stop via MME apos inversao do indicador HalfTrend
+  // 4: Stop via DiDi Index
+  // 5: Stop via desvio padrao com relacao ao candle anterior **
+  // TODO 7: stop via inversao do HalfTrend
+
+
+  // Parte de configuracao da Agulhada do Didi
+  DIDI_media1(3);  // originalmente 3
+  DIDI_media2(20); // originalmente 20
+  DIDI_mediaReferencia(8); // originalmente 8
+  nivelADX(32);    // originalmente 25, mas pode ser 30 ou 32.
+  ADX_periodo(9);  // originalmente 8
+  ADX_media(9);    // originalmente 8
+  DI_periodo(14);  // originalmente 8
+
+  // Parte de config do indicador HalfTrend
+  Amplitude(2);
+  DesvioCanal(2);
+  MostrarCanal(Verdadeiro);
+
+  // Parte da configuracao do Desvio Padrao
+  PeriodoStdDev(20);
+  StopMax(7); // qtdes interessantes: 10pts, 7pts... estudar
+
+  // valores MACD default
+  HavocPeriod(9);
+  HavocFastPeriod(12);
+  HavocSlowPeriod(26);
 
 var
   R : Float;
-  sFastMMs   : Float;
+  sFastMMs : Float;
   sMediumMMs : Float;
   sStopMMs : Float;
 
@@ -125,12 +170,11 @@ var
   macdval2 : Float;
   macdDiff : Float;
   macdTrend : Float;
-  macdmargin : Float; //Margem de aceite da operacao quando 
-                      //em torno de 0. Valor de +- 1 para WDO 15R.
+  macdmargin : Float; 
 
-  stopInit         : Float;
+  stopInit : Float;
   stopVarianceInit : Float;
-  stopTrailing     : Float;
+  stopTrailing : Float;
 
   buySignal : Boolean;
   sellSignal : Boolean;
@@ -143,26 +187,49 @@ var
 
   EntradaC, StopC, AlvoCParcial : Real;
   EntradaV, StopV, AlvoVParcial : Real;
-  D1, D2, roc1, roc2 : Real;
-  temVolume : Boolean;
-  
+
+  // Agulhada do DIDI
+  Linha1, Linha2 : Float;
+  DIP, DIM, nADX : Float;
+  linhaTrix, mmTrix : Float;
+  linhaTendencia : Float;
+
+  // Parte do calculo de HalfTrend
+  cor,trend,nextTrend : Inteiro;
+  ht,highPrice,lowPrice,highma,lowma : Real;
+  maxLowPrice,minHighPrice : Real;
+  dev,up,down,atr2,atrHigh,atrLow : Real;
+
+  realizacaoParcialConfigDone : Boolean;
+  candleRealizacaoParcial : Integer;
+
+  // Calculo do Havoc, base no codigo de 
+  // https://github.com/b2tradingclub/profitchart-estrategias/blob/master/Estrategias/HAVOC_Index
+  D1, D2, prevD1, prevD2: float; 
+  MMACD, prevMMACD, prevMCAD, cMACD, prevMACD : float;
+  roc1, roc2, prevRoc1, prevRoc2, HavocHilo : float; 
+  HavocComprar, HavocVender, HavocTemVolume : boolean;
+
+Funcao max (v1 : Real; v2 : Real) : Real;
+  Inicio
+    Result:=0;
+    Se v1 >= v2 entao Result := v1
+    Senao Result := v2;
+  Fim;
+
+Funcao min (v1 : Real; v2 : Real) : Real;
+  Inicio
+    Result:=0;
+    Se v1 <= v2 entao Result := v1
+    Senao Result := v2;
+  Fim;
 
 begin // BEGIN 01
 
-  // Caso se deseje entrar na operacao nao no rompimento do alvo 
-  // mas com uma ordem limite alguns ticks acima ou abaixo, 
-  // configurar o RespiroTicks. Nesse momento está zerado.
   R := RespiroTicks * MinPriceIncrement;
-
-  // Setup do valor de trailing stop desejado.
-  // Nesse momento isso não tem muita funcionalidade
-  // pois as saidas estao ocorrendo pela ocorrencia de
-  // um candle invertido/contrario. É uma melhoria a se 
-  // fazer realizar um trailing stop decente.
   stopInit := Abs(Close-Open)*4; // Stops em 4 candles: 15R=21; 8R=9.5; 7R=9 
   stopVarianceInit := 0;
-  stopTrailing := Abs(Close-Open)*4; // Stops em 4 candles: 15R=21; 8R=9.5; 7R=9
-  macdmargin := 0;
+  macdmargin := 0; //Margem de aceite da operacao quando em torno de 0. Valor de +- 1 para WDO 15R.
 
   // Variaveis de controle para sinalizar entrada na compra, venda
   // ou se o 2MV_Padrao está neutro, sem sinalizacao positiva ou negativa 
@@ -170,217 +237,437 @@ begin // BEGIN 01
   sellSignal := false;
   neutralCandle := false;
 
-  // Nota importante sobre o algoritmo no Profit:
-  // Para se ter os valores de indicadores e medias 
-  // calculados corretametne eh preciso que eles 
-  // sejam executados em todos os momentos e nao somente
-  // dentro de alguma condicao if/else.
-
   sFastMMs := MediaExp(FastPeriodMMs,Close);
   sMediumMMs := MediaExp(MediumPeriodMMs,Close);
   sStopMMs := MediaExp(StopPeriodMMs,Close);
+  //plot2(sStopMMs);
 
-  // Faixa em que na mm72 pode-se detectar um comportamento lateral.
-  // Nesse caso, é verificado se em um intervalo/canal muito fino
-  // os candles não estão em tendencia lateral.
-  // TODO 1: analisar se faz sentido, pois diminiu o rendimento em backtests
-  //         com um valor de 0.000026 ou 0.00003. 
-  // TODO 2: usar isso em conjunto com a verificacao do MACD histograma ter
-  //         valores menores que 1 (ou algo nesse patamar) em um intervalor
-  //         dos ultimos 3 candles. 
-  sMediumMMConstant := 0.0000001; // Valor de 0.000026 para cima impediu operacoes 
-                                  // de exemplo stopadas entre 11 e 12h de 13/abr/2021. 
-  sMediumMMsMax := sMediumMMs*(1+sMediumMMConstant);        
-  sMediumMMsMin := sMediumMMs*(1-sMediumMMConstant);
-
-  // Calculo do MACD, sinal do MACD e calculo manual do histograma
-  // em macdTrend. Através desse ultimo conseguimos detectar se 
-  // o MACD está em tendencia (seja positiva ou negativa) para entrar.
-  macdval := MACD(LongPeriodMACD, FastPeriodMACD, SignalPeriodMACD)|0|;
-  sSignalMACD := MediaExp(SignalPeriodMACD, macdval);
-  macdTrend := macdval - sSignalMACD ;
-  plot(macdval);
-  plot2(sSignalMACD); // media que parece o traco mais longo
-
-  // Calculo do indicador 2MV_Padrao
-  s2MVHigh := Media(TwoMVPeriod, High); // de forma simples: Media(20, High) 
-  s2MVLow := Media(TwoMVPeriod, Low);   // de forma simples: Media(20, Low)
-  neutralCandle := ((Close <= s2MVHigh) and (Close >= s2MVLow));
+  // Calculo para o 2MV_MACD
+  if (tradeConfig = 0) or (tradeConfig = 1) then
+    begin
+      // Faixa em que na mm72 pode-se detectar um comportamento lateral.
+      // TODO 1: analisar se faz sentido, pois diminiu o rendimento em backtests
+      //         com um valor de 0.000026 ou 0.00003. 
+      sMediumMMConstant := 0.0000001; 
+      sMediumMMsMax := sMediumMMs*(1+sMediumMMConstant);        
+      sMediumMMsMin := sMediumMMs*(1-sMediumMMConstant);
+    
+      // Calculo do MACD, sinal do MACD e calculo manual do histograma em macdTrend. 
+      macdval := MACD(LongPeriodMACD, FastPeriodMACD, SignalPeriodMACD)|0|;
+      sSignalMACD := MediaExp(SignalPeriodMACD, macdval);
+      macdTrend := macdval - sSignalMACD ;
+    //  plot(macdval);
+    //  plot2(sSignalMACD); // media que parece o traco mais longo
+    
+      // Calculo do indicador 2MV_Padrao
+      s2MVHigh := Media(TwoMVPeriod, High); // de forma simples: Media(20, High) 
+      s2MVLow := Media(TwoMVPeriod, Low);   // de forma simples: Media(20, Low)
+      neutralCandle := ((Close <= s2MVHigh) and (Close >= s2MVLow));
+      // Nao foi vista grande vantagem em buscar candles furando o 
+      // 2MV ao inves de fechar dentro.
+      // neutralCandle := ((Close <= s2MVHigh) and (Close >= s2MVLow)) OR
+      //                  ((Close > Open) and (MINIMA <= s2MVHigh) and (OPEN >= s2MVHigh)) OR
+      //                  ((Close < Open) and (MAXIMA >= s2MVLow) and (OPEN <= s2MVLow));
+    end;
 
   // Calculo da Agulhada do DIDI_Index  
-  D1:= DiDiIndex(8,0,3, 0, 20, 0)|0|; // Conferir se a M2 eh tipo 0 ou 1
-  D2:= DiDiIndex(8,0,3, 0, 20, 0)|1|; // Conferir se a M2 eh tipo 0 ou 1
+  if (tradeConfig = 3) or (tradeConfig = 4) or (tradeConfig = 5) or 
+     (stopConfig = 2) or (stopConfig = 4) then
+    begin
+      Linha1 := DiDiIndex(DIDI_mediaReferencia,0, DIDI_media1,0, DIDI_media2,0)|1|;
+      Linha2 := DiDiIndex(DIDI_mediaReferencia,0, DIDI_media1,0, DIDI_media2,0)|0|;
+      nADX := ADX(ADX_periodo, ADX_media);
+      DIP := DiPDiM(DI_periodo)|0|;
+      DIM := DiPDiM(DI_periodo)|1|;
+    end;
 
-  // Indicadores em teste com base no codigo de 
-  // https://github.com/b2tradingclub/profitchart-estrategias/blob/master/Estrategias/HAVOC_Index
-  // valores ROC default (fixo)
-  roc1 := ROC(3, 9, 1);
-  roc2 := MediaExp(6, ROC(3, 9, 1));
-  temVolume:= (Volume > Media(20, Volume)) or (Quantidade > Media(20, Quantidade));
+  // Calculo do Trix para uso junto a Agulhada do Didi
+  if (stopConfig = 2) then
+    begin
+      linhaTrix := TRIX(9,1);
+      mmTrix := Media(4, linhaTrix);
+    end;
 
-  // Variavel que contabiliza a maior parte do setup para compra
-  buySignal := (Close > sFastMMs) and 
-     (Close > sMediumMMs) and
-     (macdval-macdmargin > sSignalMACD) and
-     (Close > s2MVHigh) and  //Caso positivo do 2MV_Padrao
-     (Abs(macdTrend) < macdMax ) and
-     ((macdTrend[2] < macdTrend[1]) and (macdTrend[1] < macdTrend)) and
-     (neutralCandle[1] or neutralCandle[2] or 
-      neutralCandle[3] or neutralCandle[4] or
-      neutralCandle[5] or neutralCandle[6]) and 
-     (not((sMediumMMs[1] <= sMediumMMsMax) and (sMediumMMs[1] >= sMediumMMsMin)) and
-      not((sMediumMMs[2] <= sMediumMMsMax) and (sMediumMMs[2] >= sMediumMMsMin))) and
-      not((abs(macdTrend[0])<macdMin) and (abs(macdTrend[1])<macdMin) and (abs(macdTrend[2])<macdMin)) and 
-     (D1 > D2) and
-     //((roc1 > roc2) and (roc1[1] > roc2[1])) and
-     (temVolume) and
-     //(HiloActivator(4)|0| < Close) and 
-     (Close > Close[1]);
+  if (tradeConfig = 6) then
+    begin
+      // valores Didi Index default (fixo)
+      D1:= DiDiIndex(8,0,3, 0, 20, 1)|0|; 
+      D2:= DiDiIndex(8,0,3, 0, 20, 1)|1|;
+      prevD1:= D1[1];
+      prevD2:= D2[1];
+      // valores ROC default (fixo)
+      roc1 := ROC(3, 9, 1);
+      roc2 := MediaExp(6, ROC(3, 9, 1));
+      // Inicialização flags de compra e venda, e volume
+      HavocComprar:= False;
+      HavocVender:= False;
+      HavocTemVolume:= False;
+      // MACD parametrizado (default)
+      cMACD:= MACD(HavocSlowPeriod,HavocFastPeriod,HavocPeriod);
+      MMACD:= MediaExp(6, MACD(HavocSlowPeriod,HavocFastPeriod,HavocPeriod));
+      prevMACD:= cMACD[1];
+      prevMMACD:= MMACD[1];
+      prevRoc1:= roc1[1]; 
+      prevRoc2:= roc2[1];
+      HavocTemVolume:= (Volume > Media(20, Volume)) or 
+                       (Quantidade > Media(20, Quantidade));
+      HavocHilo := HiloActivator(4)|0|;
+    end;
+
+  // Calculo do indicador HalfTrend
+  if (tradeConfig = 1) or (tradeConfig = 2) or (stopConfig = 3) then
+    begin  
+    up:=up[1];
+    down:=down[1];
+    trend:=trend[1];
+    nextTrend:=nextTrend[1];  
+    atr2 := AvgTrueRange(100,0)/2;
+    dev := DesvioCanal * atr2;
+    
+    highPrice := highest(high,Amplitude);
+    lowPrice := lowest(low,Amplitude);  
+    highma := Media(Amplitude,high);
+    lowma := Media(Amplitude,low);
+    
+    Se nextTrend = 1 entao 
+      inicio
+        maxLowPrice := max(lowPrice, maxLowPrice);
+        Se (highma < maxLowPrice) e (close < low[1]) entao
+          inicio
+            trend := 1;
+            nextTrend := 0;
+            minHighPrice := highPrice;
+          fim;
+      fim
+    Senao
+      inicio
+        minHighPrice := min(highPrice, minHighPrice);
+        Se (lowma > minHighPrice) e (close > high[1]) entao
+          inicio
+            trend := 0;
+            NextTrend := 1;
+            maxLowPrice := lowPrice;
+          fim;
+      fim;
+    
+    Se trend = 0 entao
+      inicio
+        Se trend[1] = 1 entao up := down[1]
+        Senao up := maxLowPrice;
+        cor := clAzulClaro;
+        atrHigh := up + dev;
+        atrLow := up - dev;
+      fim
+    Senao
+      inicio
+        Se trend[1] = 0 entao down := up[1]
+        Senao down := minHighPrice;
+        cor := clVermelho; 
+        atrHigh := down + dev;
+        	atrLow := down - dev;
+      fim;
+    
+    Se trend = 0 entao ht := up
+    Senao ht := down;
   
-  // Variavel que contabiliza a maior parte do setup para venda   
-  sellSignal := (Close < sFastMMs) and 
-     (Close < sMediumMMs) and
-     (macdval+macdmargin < sSignalMACD) and
-     (Close < s2MVLow)  and  //Caso negativo do 2MV_Padrao    
-     (Abs(macdTrend) < macdMax ) and
-     ((macdTrend[2] > macdTrend[1]) and (macdTrend[1] > macdTrend)) and
-     (neutralCandle[1] or neutralCandle[2] or
-      neutralCandle[3] or neutralCandle[4] or
-      neutralCandle[5] or neutralCandle[6]) and
-     (not((sMediumMMs[1] <= sMediumMMsMax) and (sMediumMMs[1] >= sMediumMMsMin)) and
-      not((sMediumMMs[2] <= sMediumMMsMax) and (sMediumMMs[2] >= sMediumMMsMin))) and
-     not((abs(macdTrend[0])<macdMin) and (abs(macdTrend[1])<macdMin) and (abs(macdTrend[2])<macdMin)) and  
-     (D1 < D2) and
-     //((roc1 < roc2) and (roc1[1] < roc2[1]) ) and
-     (temVolume) and
-     //(HiloActivator(4)|0| > Close) and
-     (Close < Close[1]);
+    Se (tradeConfig = 1) entao
+      begin
+        Plot(ht);
+        Se MostrarCanal entao
+          inicio
+            Plot2(atrHigh);
+            Plot3(atrLow);
+          fim;  
+        SetPlotColor(1,cor);
+        // PaintBar(cor);
+      end;
+    // FIM DO Calculo do indicador HalfTrend
+  end;
 
-  // Verificacao de dias e horarios em que vamos operar.    
+
+  // Avaliacao de condicoes de entrada
+
+  // 0: Entrada via 2MV_MACD (com as filtragens existentes)
+  if (tradeConfig = 0) then 
+    begin
+      buySignal := (Close > sFastMMs) and 
+      (Close > sMediumMMs) and
+      (macdval-macdmargin > sSignalMACD) and
+      (Close > s2MVHigh) and  //Caso positivo do 2MV_Padrao
+      (Abs(macdTrend) < macdMax ) and
+      ((macdTrend[2] < macdTrend[1]) and (macdTrend[1] < macdTrend)) and
+      (neutralCandle[1] or neutralCandle[2] or neutralCandle[3] or 
+       neutralCandle[4] or neutralCandle[5] or neutralCandle[6]) and 
+      (not((sMediumMMs[1] <= sMediumMMsMax) and (sMediumMMs[1] >= sMediumMMsMin)) and
+       not((sMediumMMs[2] <= sMediumMMsMax) and (sMediumMMs[2] >= sMediumMMsMin))) and
+       not((abs(macdTrend[0])<macdMin) and (abs(macdTrend[1])<macdMin) and (abs(macdTrend[2])<macdMin)) and 
+      (Close > Close[1]);  
+
+      sellSignal := (Close < sFastMMs) and 
+      (Close < sMediumMMs) and
+      (macdval+macdmargin < sSignalMACD) and
+      (Close < s2MVLow)  and  //Caso negativo do 2MV_Padrao    
+      (Abs(macdTrend) < macdMax ) and
+      ((macdTrend[2] > macdTrend[1]) and (macdTrend[1] > macdTrend)) and
+      (neutralCandle[1] or neutralCandle[2] or neutralCandle[3] or 
+       neutralCandle[4] or neutralCandle[5] or neutralCandle[6]) and
+      (not((sMediumMMs[1] <= sMediumMMsMax) and (sMediumMMs[1] >= sMediumMMsMin)) and
+       not((sMediumMMs[2] <= sMediumMMsMax) and (sMediumMMs[2] >= sMediumMMsMin))) and
+       not((abs(macdTrend[0])<macdMin) and (abs(macdTrend[1])<macdMin) and (abs(macdTrend[2])<macdMin)) and
+      (Close < Close[1]);
+    end
+
+  // 1: Entrada via 2MV_MACD com validacao pelo HalfTrend
+  else if (tradeConfig = 1) then 
+    begin
+      buySignal := (Close > sFastMMs) and 
+      (Close > sMediumMMs) and
+      (macdval-macdmargin > sSignalMACD) and
+      (Close > s2MVHigh) and  //Caso positivo do 2MV_Padrao
+      (Abs(macdTrend) < macdMax ) and
+      ((macdTrend[2] < macdTrend[1]) and (macdTrend[1] < macdTrend)) and
+      (neutralCandle[1] or neutralCandle[2] or 
+       neutralCandle[3] or neutralCandle[4] or
+       neutralCandle[5] or neutralCandle[6]) and 
+      (not((sMediumMMs[1] <= sMediumMMsMax) and (sMediumMMs[1] >= sMediumMMsMin)) and
+       not((sMediumMMs[2] <= sMediumMMsMax) and (sMediumMMs[2] >= sMediumMMsMin))) and
+      not((abs(macdTrend[0])<macdMin) and (abs(macdTrend[1])<macdMin) and (abs(macdTrend[2])<macdMin)) and 
+      (trend = 0) and
+      (Close > Close[1]);  
+
+      sellSignal := (Close < sFastMMs) and 
+      (Close < sMediumMMs) and
+      (macdval+macdmargin < sSignalMACD) and
+      (Close < s2MVLow)  and  //Caso negativo do 2MV_Padrao    
+      (Abs(macdTrend) < macdMax ) and
+      ((macdTrend[2] > macdTrend[1]) and (macdTrend[1] > macdTrend)) and
+      (neutralCandle[1] or neutralCandle[2] or neutralCandle[3] or 
+       neutralCandle[4] or neutralCandle[5] or neutralCandle[6]) and
+      (not((sMediumMMs[1] <= sMediumMMsMax) and (sMediumMMs[1] >= sMediumMMsMin)) and
+       not((sMediumMMs[2] <= sMediumMMsMax) and (sMediumMMs[2] >= sMediumMMsMin))) and
+      not((abs(macdTrend[0])<macdMin) and (abs(macdTrend[1])<macdMin) and (abs(macdTrend[2])<macdMin)) and  
+      (trend = 1) and
+      (Close < Close[1]);
+    end
+
+  // 2: Entrada via HalfTrend
+  else if (tradeConfig = 2) then 
+    begin
+      buySignal := (Close > sFastMMs) and 
+      (trend = 0) and   // tendencia detectada pelo HalfTrend
+      (Close > Close[1]);
+
+      sellSignal := (Close < sFastMMs) and 
+      (trend = 1) and   // tendencia detectada pelo HalfTrend
+      (Close < Close[1]);
+    end
+
+  // 3: Entrada via DidiIndex (pura, sem DI+/DI- ou ADX)
+  else if (tradeConfig = 3) then 
+    begin
+      // Variavel que contabiliza a maior parte do setup para compra
+      buySignal := (Close > sFastMMs) and 
+      ((Linha1 < Linha2) and (Linha1[1] > Linha2[1])) and
+      (Close > Close[1]);
+
+      sellSignal := (Close < sFastMMs) and 
+      ((Linha1 > Linha2) and (Linha1[1] < Linha2[1])) and 
+      (Close < Close[1]);
+    end
+
+  // 4: Entrada via DidiIndex e DI+/DI- 
+  else if (tradeConfig = 4) then 
+    begin
+      buySignal := (Close > sFastMMs) and 
+      ((Linha1 < Linha2) and (Linha1[1] > Linha2[1])) and
+      (DIP > DIM) and     
+      (Close > Close[1]);
+
+      sellSignal := (Close < sFastMMs) and 
+      ((Linha1 > Linha2) and (Linha1[1] < Linha2[1])) and 
+      (DIP < DIM) and
+      (Close < Close[1]);
+    end
+
+  // 5: Entrada via DidiIndex e DI+/DI- e ADX > nivelADX
+  else if (tradeConfig = 5) then 
+    begin
+      buySignal := (Close > sFastMMs) and 
+      (nADX > nivelADX) and
+      ((Linha1 < Linha2) and (Linha1[1] > Linha2[1])) and
+      (DIP > DIM) and
+      (Close > Close[1]);
+
+      sellSignal := (Close < sFastMMs) and 
+      (nADX > nivelADX) and 
+      ((Linha1 > Linha2) and (Linha1[1] < Linha2[1])) and 
+      (DIP < DIM) and
+      (Close < Close[1]);
+    end
+
+  // 6: Entrada via Havoc
+  else if (tradeConfig = 6) then 
+    begin
+      buySignal := (roc1 > roc2) and (prevRoc1 > prevRoc2) and 
+      (prevMACD > prevMMACD) and (cMACD > MMACD) and 
+      (prevMACD < cMACD) and (D1 > D2) and 
+      (HavocHilo < Close) and (Close > Close[1]) and
+      HavocTemVolume;
+
+      sellSignal := (roc1 < roc2) and (prevRoc1 < prevRoc2) and 
+      (prevMACD < prevMMACD) and (cMACD < MMACD) and 
+      (prevMACD > cMACD) and (D1 < D2) and 
+      (HavocHilo > Close) and (Close < Close[1]);
+    end;
+
+  // Verificacao de dias e horarios de operacao
   executeTrades := true;
+  if ((DayOfWeek(Date) = Monday) and not(operarSegunda)) or
+     ((DayOfWeek(Date) = Tuesday) and not(operarTerca)) or
+     ((DayOfWeek(Date) = Wednesday) and not(operarQuarta)) or
+     ((DayOfWeek(Date) = Thursday) and not(operarQuinta)) or
+     ((DayOfWeek(Date) = Friday) and not(operarSexta)) or
+     false then
+       begin 
+          executeTrades := false;
+          ClosePosition;
+          PaintBar(clGray);
+       end
+     else 
+       if ((DayOfWeek(Date) = Monday) and 
+           ((TIME <= horarioInicialSegunda) or (TIME >= horarioFinalSegunda))) or
+          ((DayOfWeek(Date) = Tuesday) and
+           ((TIME <= horarioInicialTerca) or (TIME >= horarioFinalTerca))) or
+          ((DayOfWeek(Date) = Wednesday) and
+           ((TIME <= horarioInicialQuarta) or (TIME >= horarioFinalQuarta))) or
+          ((DayOfWeek(Date) = Thursday) and 
+           ((TIME <= horarioInicialQuinta) or (TIME >= horarioFinalQuinta))) or
+          ((DayOfWeek(Date) = Friday) and 
+           ((TIME <= horarioInicialSexta) or (TIME >= horarioFinalSexta))) or
+          false then 
+            begin
+              executeTrades := false;
+              ClosePosition;
+              PaintBar(clYellow);
+            end;
 
-  if (DayOfWeek(Date) = Monday) then
-      begin
-        if (not(operarSegunda)) then
-           begin 
-              executeTrades := false;
-              ClosePosition;
-           end
-        else if (TIME <= horarioInicialSegunda) or 
-           (TIME >= horarioFinalSegunda) then
-           begin
-              executeTrades := false;
-              ClosePosition;
-           end;      
-      end
-  else if (DayOfWeek(Date) = Tuesday) then
-      begin
-        if (not(operarTerca)) then
-           begin 
-              executeTrades := false;
-              ClosePosition;
-           end
-        else if (TIME <= horarioInicialTerca) or 
-           (TIME >= horarioFinalTerca) then
-           begin
-              executeTrades := false;
-              ClosePosition;
-           end;      
-      end
-  else if (DayOfWeek(Date) = Wednesday) then
-      begin
-        if (not(operarQuarta)) then
-           begin 
-              executeTrades := false;
-              ClosePosition;
-           end
-        else if (TIME <= horarioInicialQuarta) or 
-           (TIME >= horarioFinalQuarta) then
-           begin
-              executeTrades := false;
-              ClosePosition;
-           end;      
-      end
-  else if (DayOfWeek(Date) = Thursday) then
-      begin
-        if (not(operarQuinta)) then
-           begin 
-              executeTrades := false;
-              ClosePosition;
-           end
-        else if (TIME <= horarioInicialQuinta) or 
-           (TIME >= horarioFinalQuinta) then
-           begin
-              executeTrades := false;
-              ClosePosition;
-           end;      
-      end      
-  else if (DayOfWeek(Date) = Friday) then
-     begin
-        if (not(operarSexta)) then
-           begin 
-              executeTrades := false;
-              ClosePosition;
-           end
-        else if (TIME <= horarioInicialSexta) or 
-           (TIME >= horarioFinalSexta) then
-           begin
-              executeTrades := false;
-              ClosePosition;
-           end;
-     end;
-
+  // Execucao dos trades, seja para compra/venda ou ja posicionado
   if (executeTrades) then
     begin  // BEGIN 02      
       if (BuyPosition >= 1) then
-        begin
-          if (realizacaoParcial) and (BuyPosition = qtdeContratos) then
+        begin          
+          if (realizacaoParcial) and (realizacaoParcialConfig = 0) and
+             (BuyPosition = qtdeContratos) then
             begin
               SellShortLimit(AlvoCParcial, qtdeContratosParciais);
+            end
+          else if (realizacaoParcial) and (realizacaoParcialConfig = 1) and
+             (BuyPosition = qtdeContratos) then
+            begin
+              // TODO: seguir regra da saida via CR
+              if (Open < Close[1]) then
+                begin
+                  SellShortAtMarket(qtdeContratosParciais);
+                  PaintBar(clBlue);
+                  realizacaoParcialConfigDone := true;
+                  candleRealizacaoParcial := CurrentBar; 
+                end;
+            end
+          else if (realizacaoParcial) and  (BuyPosition <> qtdeContratos) and 
+                  not(realizacaoParcialConfigDone) then
+            begin
+              realizacaoParcialConfigDone := true;
+              candleRealizacaoParcial := CurrentBar;
+              PaintBar(clBlue);
             end;
 
-          if (stopViaMedia) and (Close <= sStopMMs) then
-            begin
-              CancelPendingOrders;
-              SellToCoverAtMarket(BuyPosition);
-              PaintBar(clYellow);
-            end
-          else if not(stopViaMedia) and (Open < Close[1]) then 
+          // Avaliacao de condicoes de saida
+          // stopConfig = 0 eh o candle de reversao
+          // stopConfig = 1 eh cruzando a media movel
+          // stopConfig = 2 eh a saida via Trix
+          // stopConfig = 3 eh cruzando a media movel + virada HalfTrend
+          // stopConfig = 4 eh a virada negativa do Didi Index
+          // stopConfig = 5 eh o valor do desvio padrao em [1]
+          if ((stopConfig = 0) and (Open < Close[1])) or
+             ((stopConfig = 1) and (Close <= sStopMMs)) or
+             ((stopConfig = 2) and (mmTrix < linhaTrix) and (mmTrix[1] > linhaTrix[1])) or
+             ((stopConfig = 3) and (Close <= sStopMMs) and (trend = 1)) or
+             ((stopConfig = 4) and (Linha1 > Linha2) and (Linha1[1] < Linha2[1])) or
+             ((stopConfig = 5) and ((Close <= (Close[1] - StdDevs(Close, PeriodoStdDev))) or
+                                    (Close < BuyPrice-StopMax))) or
+             false then 
             begin
               CancelPendingOrders;        
               SellToCoverAtMarket(BuyPosition);
               PaintBar(clYellow);
+              realizacaoParcialConfigDone := false;
             end
-          else
-              PaintBar(clGreen);
+          // else if (realizacaoParcialConfigDone = true) then
+          else 
+            begin
+              if (not(realizacaoParcial)) or 
+                 (candleRealizacaoParcial <> CurrentBar) then 
+                PaintBar(clGreen);
+            end;
         end
 
       // Em caso de posicao vendida, baixar o stop ou stopar o trade
       else if (SellPosition >= 1) then
         begin
-          if (realizacaoParcial) and (SellPosition = qtdeContratos) then
+          if (realizacaoParcial) and (realizacaoParcialConfig = 0) and
+             (SellPosition = qtdeContratos) then
             begin
               BuyLimit(AlvoVParcial, qtdeContratosParciais);              
+            end
+          else if (realizacaoParcial) and (realizacaoParcialConfig = 1) and
+             (SellPosition = qtdeContratos) then
+            begin
+              if (Open > Close[1]) then
+              begin
+                BuyAtMarket(qtdeContratosParciais);
+                PaintBar(clBlue);
+                realizacaoParcialConfigDone := true;
+                candleRealizacaoParcial := CurrentBar;
+              end;
+            end
+          else if (realizacaoParcial) and  (SellPosition <> qtdeContratos) and 
+                  not(realizacaoParcialConfigDone) then
+            begin
+              realizacaoParcialConfigDone := true;
+              candleRealizacaoParcial := CurrentBar;
+              PaintBar(clBlue);
             end;
 
-          if (stopViaMedia) and (Close >= sStopMMs) then
+          // Avaliacao de condicoes de saida
+          // stopConfig = 0 eh o candle de reversao
+          // stopConfig = 1 eh cruzando a media movel
+          // stopConfig = 2 eh a saida via Trix
+          // stopConfig = 3 eh cruzando a media movel + virada HalfTrend
+          // stopConfig = 4 eh a virada positiva do Didi Index  
+          // stopConfig = 5 eh o valor do desvio padrao em [1]
+          if ((stopConfig = 0) and (Open > Close[1])) or
+             ((stopConfig = 1) and (Close >= sStopMMs)) or
+             ((stopConfig = 2) and (mmTrix > linhaTrix) and (mmTrix[1] < linhaTrix[1])) or
+             ((stopConfig = 3) and (Close >= sStopMMs) and (trend = 0)) or
+             ((stopConfig = 4) and (Linha1 < Linha2) and (Linha1[1] > Linha2[1])) or
+             ((stopConfig = 5) and ((Close >= (Close[1] + StdDevs(Close, PeriodoStdDev))) or
+                                    (Close > SellPrice+StopMax))) or
+             false then
             begin
               CancelPendingOrders;        
               BuyToCoverAtMarket(SellPosition);
               PaintBar(clYellow);
-            end
-          else if not(stopViaMedia) and (Open > Close[1]) then 
-            begin
-              CancelPendingOrders;        
-              BuyToCoverAtMarket(SellPosition);
-              PaintBar(clYellow);
+              realizacaoParcialConfigDone := false;
             end
           else
-              PaintBar(clMaroon);
+            begin
+              if (not(realizacaoParcial)) or 
+                 (candleRealizacaoParcial <> CurrentBar) then 
+                PaintBar(clMaroon);
+            end;
         end
 
-      // Caso não se esteja nem comprado, nem vendido vamos
-      // analisar se temos sinal de compra ou venda.
+      // Execucao de entrada na compra ou venda
       else if (BuyPosition = 0) and (SellPosition = 0) then
         begin // BEGIN 03
             if (buySignal) then
@@ -394,7 +681,8 @@ begin // BEGIN 01
             
                      BuyStop(EntradaC, EntradaC, qtdeContratos);                     
                      SellShortStop(StopC, StopC, qtdeContratos);
-                     SellShortLimit(AlvoCParcial, qtdeContratosParciais);
+                     if ((realizacaoParcial) and (realizacaoParcialConfig = 0)) then
+                       SellShortLimit(AlvoCParcial, qtdeContratosParciais);
 
                      PaintBar(clLime);
                    end;                 
@@ -410,7 +698,8 @@ begin // BEGIN 01
 
                      SellShortStop(EntradaV, EntradaV, qtdeContratos);                     
                      BuyStop(StopV, StopV, qtdeContratos);
-                     BuyLimit(AlvoVParcial, qtdeContratosParciais);
+                     if ((realizacaoParcial) and (realizacaoParcialConfig = 0)) then
+                       BuyLimit(AlvoVParcial, qtdeContratosParciais);
 
                      PaintBar(clRed);
                    end;
