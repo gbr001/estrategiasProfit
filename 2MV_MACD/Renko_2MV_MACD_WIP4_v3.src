@@ -27,7 +27,10 @@
 //  se deseja realizar com as opcoes comentadas abaixo na area de parametros.
 
 // Na versão WIPv3 está sendo testado a alteração no
-//  2MV_MACD 
+//  2MV_MACD para uso de uma media curta de 3p exp. no
+//  histograma do MACD, assim como a opcao por padrao de
+//  entrada com 2 contratos com realizacao parcial via
+//  CR e stop via desvio padrao.
 
 // TODO: pensar em uma forma de controle do tradeConfig conforme 
 //       o lucro já obtido no mercado durante o dia e conforme
@@ -54,6 +57,7 @@ input
   LongPeriodMACD(150);
   FastPeriodMACD(14);
   SignalPeriodMACD(14);
+  TrendPeriodMACD(3);
 
   // Horarios limite de negociacao da estrategia
   operarSegunda(true); // default true
@@ -119,6 +123,7 @@ input
   // Parametros de configuracao de saida do trade 
   StopPeriodMMs(9); //TODO: 9 periodos eh uma boa alternativa tambem
   stopConfig(5);
+  //stopConfig(0);
   // 0: Stop via candle reverso (CR)
   // 1: Stop via MME (9p por default)
   // 2: Stop via Trix, a ser usado com DiDi Index
@@ -166,6 +171,7 @@ var
   sLongMACD   : Float; 
   sFastMACD   : Float;
   sSignalMACD : Float;
+  sTrendMACD : Float;
   macdval : Float;
   macdval2 : Float;
   macdDiff : Float;
@@ -255,7 +261,9 @@ begin // BEGIN 01
       // Calculo do MACD, sinal do MACD e calculo manual do histograma em macdTrend. 
       macdval := MACD(LongPeriodMACD, FastPeriodMACD, SignalPeriodMACD)|0|;
       sSignalMACD := MediaExp(SignalPeriodMACD, macdval);
-      macdTrend := macdval - sSignalMACD ;
+      macdTrend := macdval - sSignalMACD;
+      sTrendMACD := MediaExp(TrendPeriodMACD, macdTrend);
+
     //  plot(macdval);
     //  plot2(sSignalMACD); // media que parece o traco mais longo
     
@@ -395,7 +403,7 @@ begin // BEGIN 01
       (macdval-macdmargin > sSignalMACD) and
       (Close > s2MVHigh) and  //Caso positivo do 2MV_Padrao
       (Abs(macdTrend) < macdMax ) and
-      ((macdTrend[2] < macdTrend[1]) and (macdTrend[1] < macdTrend)) and
+      ((sTrendMACD[2] < sTrendMACD[1]) and (sTrendMACD[1] < sTrendMACD)) and
       (neutralCandle[1] or neutralCandle[2] or neutralCandle[3] or 
        neutralCandle[4] or neutralCandle[5] or neutralCandle[6]) and 
       (not((sMediumMMs[1] <= sMediumMMsMax) and (sMediumMMs[1] >= sMediumMMsMin)) and
@@ -408,7 +416,7 @@ begin // BEGIN 01
       (macdval+macdmargin < sSignalMACD) and
       (Close < s2MVLow)  and  //Caso negativo do 2MV_Padrao    
       (Abs(macdTrend) < macdMax ) and
-      ((macdTrend[2] > macdTrend[1]) and (macdTrend[1] > macdTrend)) and
+      ((sTrendMACD[2] > sTrendMACD[1]) and (sTrendMACD[1] > sTrendMACD)) and
       (neutralCandle[1] or neutralCandle[2] or neutralCandle[3] or 
        neutralCandle[4] or neutralCandle[5] or neutralCandle[6]) and
       (not((sMediumMMs[1] <= sMediumMMsMax) and (sMediumMMs[1] >= sMediumMMsMin)) and
